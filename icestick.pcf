@@ -1,0 +1,10 @@
+set_io clk 21
+
+set_io io_greenLed 95
+set_io io_redLeds_0 96
+set_io io_redLeds_1 97
+set_io io_redLeds_2 98
+set_io io_redLeds_3 99
+
+set_io io_uart_txd 8
+set_io io_uart_rxd 9
