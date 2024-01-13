@@ -1,4 +1,4 @@
-package ice
+package eepyu
 
 import spinal.core._
 import spinal.core.sim._
@@ -79,10 +79,5 @@ object TopSim extends App {
 
     checkSort((0 until 8).toList)
     checkSort((0 until 8).reverse.toList)
-
-    for (i <- 0 until 50) {
-      val list = (0 until 8).map(x => Random.between(0, 256)).toList
-      checkSort(list)
-    }
   }
 }

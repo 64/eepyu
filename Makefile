@@ -1,7 +1,7 @@
-.PHONY: all gui timing flash formal sim isim wave synth clean
+.PHONY: all gui timing flash formal sim isim wave synth util clean cleanall
 
 TOP ?= Top
-SCALADEPS := build.sbt src/**/*.scala
+SCALADEPS := build.sbt src/**/*.scala src/**/**/*.scala
 PNRARGS := --pcf icestick.pcf --freq 60 --hx1k --package tq144
 
 all: out/$(TOP).v
@@ -9,7 +9,11 @@ all: out/$(TOP).v
 clean:
 	rm -rvf simWorkspace out target tmp
 
-synth: out/Top.json
+cleanall: clean
+	rm -rvf .bloop .metals
+
+synth: out/$(TOP).v
+	$(EDITOR) $^
 
 gui: out/Top.json
 	source /opt/oss-cad-suite/environment && nextpnr-ice40 --json $^ --asc $@ $(PNRARGS) --gui
@@ -22,23 +26,26 @@ flash: out/Top.bin
 	source /opt/oss-cad-suite/environment && iceprog $^
 	@echo '--- Done ---'
 
+util: out/Top.json
+	source /opt/oss-cad-suite/environment && nextpnr-ice40 --pack-only --json $^ $(PNRARGS)
+
 formal: $(SCALADEPS)
-	source /opt/oss-cad-suite/environment && sbt 'runMain ice.$(TOP)Formal'
+	source /opt/oss-cad-suite/environment && sbt 'runMain eepyu.$(TOP)Formal'
 
 sim: $(SCALADEPS)
-	sbt 'runMain ice.$(TOP)Sim --iverilog'
+	sbt 'runMain eepyu.$(TOP)Sim --iverilog'
 
 vsim: $(SCALADEPS)
-	source /opt/oss-cad-suite/environment && sbt 'runMain ice.$(TOP)Sim'
+	source /opt/oss-cad-suite/environment && sbt 'runMain eepyu.$(TOP)Sim'
 
 osim: $(SCALADEPS)
-	source /opt/oss-cad-suite/environment && sbt 'runMain ice.$(TOP)Sim --optimise'
+	source /opt/oss-cad-suite/environment && sbt 'runMain eepyu.$(TOP)Sim --optimise'
 
 wave:
-	gtkwave simWorkspace/$(TOP)/test.fst
+	gtkwave simWorkspace/$(TOP)/test.vcd
 
-out/Top.v: $(SCALADEPS)
-	source /opt/oss-cad-suite/environment && sbt 'runMain ice.$(TOP)Verilog'
+out/$(TOP).v: $(SCALADEPS)
+	source /opt/oss-cad-suite/environment && sbt 'runMain eepyu.$(TOP)Verilog'
 
 out/Top.json: out/Top.v out/BlackboxRTL.v
 	source /opt/oss-cad-suite/environment && yosys -p "synth_ice40 -top Top -json $@" $^

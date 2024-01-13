@@ -1,4 +1,4 @@
-package ice
+package eepyu
 
 import spinal.core._
 
@@ -10,5 +10,5 @@ class IcePll(pllClockDomain: ClockDomain) extends BlackBox {
   }
 
   noIoPrefix()
-  addRTLPath("./src/ice/IcePll.v")
+  addRTLPath("./src/eepyu/blackbox/IcePll.v")
 }

@@ -1,4 +1,4 @@
-package ice
+package eepyu
 
 import spinal.core._
 import spinal.core.sim._
@@ -13,18 +13,20 @@ object Config {
   )
 
   def sim(args: Array[String]): SpinalSimConfig = {
-    var conf = SimConfig.withConfig(spinal.includeSimulation).withFstWave
+    var config = SimConfig.withConfig(spinal.includeSimulation).withVcdWave
 
     if (args.contains("--optimise")) {
-      conf = conf.allOptimisation
+      config = config.allOptimisation
     }
 
     if (args.contains("--iverilog")) {
-      conf = conf.withIVerilog
+      config = config.withIVerilog
     }
 
-    conf
+    config
   }
+
+  def synth = Config.spinal.includeSynthesis
 
   def formal = FormalConfig.withConfig(spinal.includeFormal)
 }
