@@ -1,0 +1,174 @@
+#!/usr/bin/env -S doit -v2 -f
+
+import os
+import glob
+
+from doit.tools import Interactive
+
+DOIT_CONFIG = {"default_tasks": ["elaborate:Top"]}
+
+PNR_ARGS = "--pcf icestick.pcf --freq 60 --hx1k --package tq144"
+
+TOP_BLOCKS = [
+    "Alu",
+    "AluUart",
+    "System",
+    "Top",
+]
+
+
+def get_scala_sources():
+    return glob.glob("./eepyu/src/**/*.scala", recursive=True)
+
+def get_scala_test_sources():
+    return glob.glob("./eepyu/**/*.scala", recursive=True)
+
+
+def get_mill_cmd(cmd):
+    os.environ['EEPYU_SIM_OPTS'] = 'iverilog'
+    return f"./mill {cmd}"
+
+
+def get_edit_file_cmd(top):
+    editor = os.environ.get("EDITOR")
+    return f"{editor} out/{top}.v"
+
+
+def with_oss_cad_suite(cmd):
+    return "source /opt/oss-cad-suite/environment && " + cmd
+
+
+def task_elaborate():
+    for top in TOP_BLOCKS:
+        yield {
+            "name": top,
+            "actions": [get_mill_cmd(f"eepyu.runMain eepyu.{top}Verilog")],
+            "file_dep": get_scala_sources(),
+            "targets": [f"out/{top}.v"],
+        }
+
+    yield {"name": None, "task_dep": ["elaborate:Top"]}
+
+
+def task_verilog():
+    for top in TOP_BLOCKS:
+        yield {
+            "name": top,
+            "actions": [Interactive(get_edit_file_cmd(top))],
+            "file_dep": [f"out/{top}.v"],
+            "uptodate": [False],
+        }
+
+    yield {"name": None, "task_dep": ["verilog:Top"]}
+
+
+def task_sim():
+    for top in TOP_BLOCKS:
+        yield {
+            "name": top,
+            "actions": [get_mill_cmd(f"eepyu.runMain eepyu.{top}Sim")],
+            "file_dep": get_scala_sources(),
+            "uptodate": [False],
+        }
+
+    yield {"name": None, "task_dep": ["sim:Top"]}
+
+
+def task_wave():
+    for top in TOP_BLOCKS:
+        wave_file = f"simWorkspace/{top}/test.vcd"
+        yield {
+            "name": top,
+            "actions": [Interactive(f"gtkwave {wave_file}")],
+            "file_dep": [wave_file],
+            "uptodate": [False],
+        }
+
+    yield {"name": None, "task_dep": ["wave:Top"]}
+
+
+def task_test():
+    for top in TOP_BLOCKS:
+        yield {
+            "name": top,
+            "actions": [
+                # For now, we have to run iverilog outside the OSS cad suite.
+                # with_oss_cad_suite(get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests"))
+                get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests")
+            ],
+            "file_dep": get_scala_sources() + get_scala_test_sources(),
+            "uptodate": [False],
+        }
+
+
+def task_synthesize():
+    return {
+        "actions": [
+            with_oss_cad_suite(
+                'yosys -p "synth_ice40 -top Top -json out/Top.json" out/Top.v out/BlackboxRTL.v'
+            )
+        ],
+        "file_dep": ["out/Top.v", "out/BlackboxRTL.v"],
+        "targets": ["out/Top.json"],
+    }
+
+
+def task_pnr():
+    return {
+        "actions": [
+            with_oss_cad_suite(
+                f"nextpnr-ice40 --json out/Top.json --asc out/Top.asc {PNR_ARGS}"
+            )
+        ],
+        "file_dep": ["out/Top.json"],
+        "targets": ["out/Top.asc"],
+    }
+
+
+def task_gui():
+    return {
+        "actions": [
+            Interactive(
+                with_oss_cad_suite(
+                    f"nextpnr-ice40 --json out/Top.json {PNR_ARGS} --gui"
+                )
+            )
+        ],
+        "file_dep": ["out/Top.json"],
+    }
+
+
+def task_pack():
+    return {
+        "actions": [with_oss_cad_suite("icepack out/Top.asc out/Top.bin")],
+        "file_dep": ["out/Top.asc"],
+        "targets": ["out/Top.bin"],
+    }
+
+
+def task_flash():
+    return {
+        "actions": [with_oss_cad_suite("iceprog out/Top.bin")],
+        "file_dep": ["out/Top.bin"],
+    }
+
+
+def task_util():
+    return {
+        "actions": [
+            with_oss_cad_suite(
+                f"nextpnr-ice40 --pack-only --json out/Top.json {PNR_ARGS}"
+            )
+        ],
+        "file_dep": ["out/Top.json"],
+        "uptodate": [False],
+    }
+
+
+def task_timing():
+    return {
+        "actions": [with_oss_cad_suite("icetime -d hx1k -t out/Top.asc")],
+        "file_dep": ["out/Top.asc"],
+        "uptodate": [False],
+        "verbosity": 2,
+    }

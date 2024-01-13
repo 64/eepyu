@@ -9,7 +9,7 @@ import eepyu.Alu
 import eepyu.AluOp
 import eepyu.Config
 
-// Useful for area estimates, since it ensures the thing doesn't get optimized away.
+// Useful for area estimates, since it ensures the ALU doesn't get optimized away.
 
 class AluUart extends Component {
   val io = new Bundle {
@@ -77,4 +77,3 @@ class AluUart extends Component {
     }
   }
 }
-

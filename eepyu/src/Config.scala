@@ -12,14 +12,14 @@ object Config {
     )
   )
 
-  def sim(args: Array[String]): SpinalSimConfig = {
+  def sim: SpinalSimConfig = {
     var config = SimConfig.withConfig(spinal.includeSimulation).withVcdWave
 
-    if (args.contains("--optimise")) {
+    val simOpts = sys.env.getOrElse("EEPYU_SIM_OPTS", "")
+    if (simOpts.contains("optimize")) {
       config = config.allOptimisation
     }
-
-    if (args.contains("--iverilog")) {
+    if (simOpts.contains("iverilog")) {
       config = config.withIVerilog
     }
 

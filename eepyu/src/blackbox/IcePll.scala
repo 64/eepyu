@@ -10,5 +10,5 @@ class IcePll(pllClockDomain: ClockDomain) extends BlackBox {
   }
 
   noIoPrefix()
-  addRTLPath("./src/eepyu/blackbox/IcePll.v")
+  addRTLPath("./eepyu/src/blackbox/IcePll.v")
 }

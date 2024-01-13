@@ -46,3 +46,5 @@ bin/
 simWorkspace/
 tmp/
 null
+__pycache__
+.doit.db

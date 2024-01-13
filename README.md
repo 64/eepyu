@@ -2,4 +2,6 @@
 
 TODO:
 
-- ScalaTest
+- doit clean
+- doit ALU formal
+- konata pipeline

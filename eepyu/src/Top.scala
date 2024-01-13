@@ -42,6 +42,7 @@ object ClockedTop {
   val pllFreq = FixedFrequency(60 MHz)
 
   def apply() = ClockDomain.external("", frequency = externalClockFreq)(Top(pllFreq))
+
 }
 
 object TopVerilog extends App {
