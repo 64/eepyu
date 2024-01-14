@@ -3,7 +3,7 @@ package eepyu
 import spinal.core._
 
 object AluOp extends SpinalEnum {
-  val ADD, SUB, AND, OR, XOR, EQ, NE, SLL, SRL = newElement()
+  val ADD, SUB, AND, OR, XOR, EQ, NE, SLL, SRL, SRA = newElement()
 }
 
 class Alu extends Component {
@@ -19,31 +19,38 @@ class Alu extends Component {
 
   val shiftAmount = Reg(UInt(5 bits)) init 0
   val shiftVal = Reg(UInt(32 bits)) init 0
-  val enabled = Reg(Bool()) init False
+  val shifting = Reg(Bool()) init False
+
+  val isShift = io.op === AluOp.SLL || io.op === AluOp.SRL || io.op === AluOp.SRA
 
   io.valid := io.en
 
-  when(io.en && !enabled && (io.op === AluOp.SLL || io.op === AluOp.SRL)) {
+  when(io.en && !shifting && isShift) {
+    // Begin shifting.
     shiftAmount := io.src2(0 until 5)
     shiftVal := io.src1
-    enabled := True
+    shifting := True
+
+    // We could optimise this to set valid if the output is set this cycle (shiftAmount == 0).
     io.valid := False
   }
 
-  when(enabled) {
+  when(shifting) {
     when(shiftAmount > 0) {
       io.valid := False
       shiftAmount := shiftAmount - 1
 
-      when (io.op === AluOp.SLL) {
+      when(io.op === AluOp.SLL) {
         shiftVal := shiftVal |<< 1
       }
-
-      when (io.op === AluOp.SRL) {
+      when(io.op === AluOp.SRL) {
         shiftVal := shiftVal |>> 1
       }
+      when(io.op === AluOp.SRA) {
+        shiftVal := (shiftVal.asSInt |>> 1).asUInt
+      }
     }.otherwise {
-      enabled := False
+      shifting := False
       io.valid := True
     }
   }
@@ -59,8 +66,10 @@ class Alu extends Component {
     // Single cycle shifts, but big area usage
     // AluOp.SLL -> (io.src1 |<< io.src2(0 until 5)),
     // AluOp.SRL -> (io.src1 |>> io.src2(0 until 5)),
+    // AluOp.SRA -> (io.src1.asSInt |>> io.src2(0 until 5)).asUInt,
     AluOp.SLL -> shiftVal,
-    AluOp.SRL -> shiftVal
+    AluOp.SRL -> shiftVal,
+    AluOp.SRA -> shiftVal
   )
 }
 

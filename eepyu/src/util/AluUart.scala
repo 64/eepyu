@@ -67,16 +67,21 @@ class AluUart extends Component {
         src2 := (src2 |<< 8) | input.payload.resize(32)
         count.increment()
         when(count.willOverflow) {
-          alu.io.en := True
           goto(enableAlu)
         }
       }
     }
 
     enableAlu.whenIsActive {
-      count.clear()
       alu.io.en := True
-      goto(commit)
+      count.clear()
+      // Hacky...
+      when(alu.io.valid) {
+        led := alu.io.dst >= 5
+        goto(readOp)
+      }.otherwise {
+        goto(commit)
+      }
     }
 
     commit.whenIsActive {

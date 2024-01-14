@@ -8,7 +8,7 @@ from doit.tools import Interactive
 
 from functools import partial
 
-DOIT_CONFIG = {"default_tasks": ["elaborate:Top"]}
+DOIT_CONFIG = {"default_tasks": ["elaborate:Top"], "backend": "sqlite3"}
 
 PNR_ARGS = "--pcf icestick.pcf --freq 60 --hx1k --package tq144"
 
