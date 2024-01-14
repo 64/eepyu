@@ -34,6 +34,7 @@ class AluUart extends Component {
   alu.io.op := op
   alu.io.src1 := src1
   alu.io.src2 := src2
+  alu.io.en := False
 
   val input = io.data.map(x => x - '0'.toInt)
 
@@ -41,6 +42,7 @@ class AluUart extends Component {
     val readOp = new State with EntryPoint
     val readSrc1 = new State
     val readSrc2 = new State
+    val enableAlu = new State
     val commit = new State
 
     readOp.whenIsActive {
@@ -65,15 +67,23 @@ class AluUart extends Component {
         src2 := (src2 |<< 8) | input.payload.resize(32)
         count.increment()
         when(count.willOverflow) {
-          goto(commit)
+          alu.io.en := True
+          goto(enableAlu)
         }
       }
     }
 
-    commit.whenIsActive {
-      led := alu.io.dst >= 5
+    enableAlu.whenIsActive {
       count.clear()
-      goto(readOp)
+      alu.io.en := True
+      goto(commit)
+    }
+
+    commit.whenIsActive {
+      when(alu.io.valid) {
+        led := alu.io.dst >= 5
+        goto(readOp)
+      }
     }
   }
 }

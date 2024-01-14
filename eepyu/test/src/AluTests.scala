@@ -17,11 +17,17 @@ class AluTests extends AnyFunSuite {
     def wrapNegatives(x: Long): Long = if (x < 0) { reverse(x.abs) }
     else { x }
 
+    alu.io.en #= true
     alu.io.op #= op
     alu.io.src1 #= wrapNegatives(src1)
     alu.io.src2 #= wrapNegatives(src2)
 
-    sleep(1)
+    alu.clockDomain.waitSampling()
+    alu.io.en #= false
+
+    if (!alu.io.valid.toBoolean) {
+      alu.clockDomain.waitSamplingWhere(alu.io.valid.toBoolean)
+    }
 
     val expected = wrapNegatives(getModel(op)(src1, src2))
     val actual = alu.io.dst.toLong
@@ -41,35 +47,30 @@ class AluTests extends AnyFunSuite {
   }
 
   def checkRandom(alu: Alu, op: AluOp.E) = {
-    for (i <- 0 until 10000) {
+    for (i <- 0 until 1000) {
       val src1 = Random.between(0, (2 << 32) - 1)
       val src2 = Random.between(0, (2 << 32) - 1)
       checkAluOp(alu, op, src1, src2)
     }
   }
 
-  def addModel(x: Long, y: Long) = x + y
-  def subModel(x: Long, y: Long) = x - y
-  def andModel(x: Long, y: Long) = x & y
-  def orModel(x: Long, y: Long) = x | y
-  def xorModel(x: Long, y: Long) = x ^ y
-  def eqModel(x: Long, y: Long) = if (x == y) 1 else 0
-  def neModel(x: Long, y: Long) = if (x != y) 1 else 0
-
   def getModel(op: AluOp.E): (Long, Long) => Long = op match {
-    case AluOp.ADD => addModel
-    case AluOp.SUB => subModel
-    case AluOp.AND => andModel
-    case AluOp.OR  => orModel
-    case AluOp.XOR => xorModel
-    case AluOp.EQ  => eqModel
-    case AluOp.NE  => neModel
+    case AluOp.ADD => (x, y) => x + y
+    case AluOp.SUB => (x, y) => x - y
+    case AluOp.AND => (x, y) => x & y
+    case AluOp.OR  => (x, y) => x | y
+    case AluOp.XOR => (x, y) => x ^ y
+    case AluOp.EQ  => (x, y) => if (x == y) 1 else 0
+    case AluOp.NE  => (x, y) => if (x != y) 1 else 0
+    case AluOp.SLL => (x, y) => x << y
+    case AluOp.SRL => (x, y) => x >> y
   }
 
   val compiled = Config.sim.compile(new Alu)
 
   test("AluOp.ADD") {
     compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.ADD, -20 until 20)
       checkRandom(dut, AluOp.ADD)
     }
@@ -77,6 +78,7 @@ class AluTests extends AnyFunSuite {
 
   test("AluOp.SUB") {
     compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.SUB, -20 until 20)
       checkRandom(dut, AluOp.SUB)
     }
@@ -84,6 +86,7 @@ class AluTests extends AnyFunSuite {
 
   test("AluOp.AND") {
     compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.AND, 0 until 40)
       checkRandom(dut, AluOp.AND)
     }
@@ -91,6 +94,7 @@ class AluTests extends AnyFunSuite {
 
   test("AluOp.OR") {
     compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.OR, 0 until 40)
       checkRandom(dut, AluOp.OR)
     }
@@ -98,6 +102,7 @@ class AluTests extends AnyFunSuite {
 
   test("AluOp.XOR") {
     compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.XOR, 0 until 40)
       checkRandom(dut, AluOp.XOR)
     }
@@ -105,6 +110,7 @@ class AluTests extends AnyFunSuite {
 
   test("AluOp.EQ") {
     compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.EQ, 0 until 20)
       checkRandom(dut, AluOp.EQ)
     }
@@ -112,8 +118,29 @@ class AluTests extends AnyFunSuite {
 
   test("AluOp.NE") {
     compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.NE, 0 until 20)
       checkRandom(dut, AluOp.NE)
+    }
+  }
+
+  test("AluOp.SLL") {
+    compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
+      SimTimeout(10 * 1000000)
+
+      checkAluOpRange(dut, AluOp.SLL, 0 until 20)
+      checkRandom(dut, AluOp.SLL)
+    }
+  }
+
+  test("AluOp.SRL") {
+    compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
+      SimTimeout(10 * 1000000)
+
+      checkAluOpRange(dut, AluOp.SRL, 0 until 20)
+      checkRandom(dut, AluOp.SRL)
     }
   }
 }

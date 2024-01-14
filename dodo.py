@@ -3,7 +3,10 @@
 import os
 import glob
 
+from doit.action import CmdAction
 from doit.tools import Interactive
+
+from functools import partial
 
 DOIT_CONFIG = {"default_tasks": ["elaborate:Top"]}
 
@@ -20,12 +23,13 @@ TOP_BLOCKS = [
 def get_scala_sources():
     return glob.glob("./eepyu/src/**/*.scala", recursive=True)
 
+
 def get_scala_test_sources():
     return glob.glob("./eepyu/**/*.scala", recursive=True)
 
 
 def get_mill_cmd(cmd):
-    os.environ['EEPYU_SIM_OPTS'] = 'iverilog'
+    os.environ["EEPYU_SIM_OPTS"] = "iverilog"
     return f"./mill {cmd}"
 
 
@@ -88,16 +92,24 @@ def task_wave():
 
 
 def task_test():
+    def get_test_cmd(top, sub_test):
+        # For now, we have to run iverilog outside the OSS cad suite.
+        cmd = get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests")
+
+        # ScalaTest syntax to run specific commands
+        if len(sub_test) > 0:
+            cmd += " -- -z " + sub_test
+
+        return cmd
+
     for top in TOP_BLOCKS:
         yield {
             "name": top,
-            "actions": [
-                # For now, we have to run iverilog outside the OSS cad suite.
-                # with_oss_cad_suite(get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests"))
-                get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests")
-            ],
+            "actions": [CmdAction(partial(get_test_cmd, top))],
+            "params": [{"name": "sub_test", "short": "t", "default": ""}],
             "file_dep": get_scala_sources() + get_scala_test_sources(),
             "uptodate": [False],
+            "verbosity": 2,
         }
 
 
