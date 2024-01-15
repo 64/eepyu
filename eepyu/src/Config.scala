@@ -28,5 +28,5 @@ object Config {
 
   def synth = Config.spinal.includeSynthesis
 
-  def formal = FormalConfig.withConfig(spinal.includeFormal)
+  def formal = FormalConfig.withConfig(spinal.includeFormal.includeSimulation)
 }

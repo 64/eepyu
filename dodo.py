@@ -15,6 +15,7 @@ PNR_ARGS = "--pcf icestick.pcf --freq 60 --hx1k --package tq144"
 TOP_BLOCKS = [
     "Alu",
     "AluUart",
+    "Decoder",
     "System",
     "Top",
 ]
@@ -94,6 +95,7 @@ def task_wave():
 def task_test():
     def get_test_cmd(top, sub_test):
         # For now, we have to run iverilog outside the OSS cad suite.
+        # cmd = with_oss_cad_suite(get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests"))
         cmd = get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests")
 
         # ScalaTest syntax to run specific commands
