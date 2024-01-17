@@ -50,7 +50,8 @@ object Inst {
   val jTypeInstructions = List(JAL)
   val bTypeInstructions = List(BEQ, BNE, BLT, BGE, BLTU, BGEU)
 
-  val allInstructions = rTypeInstructions ++ iTypeInstructions ++ sTypeInstructions ++ jTypeInstructions ++ bTypeInstructions
+  val allInstructions =
+    rTypeInstructions ++ iTypeInstructions ++ sTypeInstructions ++ jTypeInstructions ++ bTypeInstructions
 }
 
 class Decoder extends Component {

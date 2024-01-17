@@ -28,38 +28,38 @@ case class System() extends Component {
   io.redLeds(1) := False
   io.redLeds(2) := False
   io.redLeds(3) := False
-  io.greenLed := False
+  // io.greenLed := False
 
   // val aluUart = new util.AluUart
   // aluUart.io.data << uartCtrl.io.read.asFlow.as(Flow(UInt(8 bits)))
   // io.redLeds(3) := aluUart.io.led
 
-  val decoder = new Decoder
-  decoder.io.inst := 0
-
-  val shift = Reg(UInt(32 bits))
-  val count = Counter(4)
-  when (uartCtrl.io.read.fire) {
-    shift := (shift |<< 8) | uartCtrl.io.read.payload.asUInt.resized
-    count.increment()
-  }
-
-  when(count === 0) {
-    decoder.io.inst := shift
-
-    io.redLeds(0) := decoder.io.rType
-    io.redLeds(1) := decoder.io.iType
-    io.redLeds(2) := decoder.io.sType
-    io.redLeds(3) := decoder.io.jType
-    io.greenLed := decoder.io.bType
-  }
-
-  // GenerationFlags.synthesis {
-  //   io.greenLed := True
+  // val decoder = new Decoder
+  // decoder.io.inst := 0
+  //
+  // val shift = Reg(UInt(32 bits))
+  // val count = Counter(4)
+  // when (uartCtrl.io.read.fire) {
+  //   shift := (shift |<< 8) | uartCtrl.io.read.payload.asUInt.resized
+  //   count.increment()
   // }
-  // GenerationFlags.simulation {
-  //   io.greenLed := False
+  //
+  // when(count === 0) {
+  //   decoder.io.inst := shift
+  //
+  //   io.redLeds(0) := decoder.io.rType
+  //   io.redLeds(1) := decoder.io.iType
+  //   io.redLeds(2) := decoder.io.sType
+  //   io.redLeds(3) := decoder.io.jType
+  //   io.greenLed := decoder.io.bType
   // }
+
+  GenerationFlags.synthesis {
+    io.greenLed := True
+  }
+  GenerationFlags.simulation {
+    io.greenLed := False
+  }
 
   uartCtrl.io.write <> uartCtrl.io.read
 }

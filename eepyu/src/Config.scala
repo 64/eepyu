@@ -22,6 +22,9 @@ object Config {
     if (simOpts.contains("iverilog")) {
       config = config.withIVerilog
     }
+    if (simOpts.contains("verilator")) {
+      config = config.withVerilator
+    }
 
     config
   }

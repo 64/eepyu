@@ -16,6 +16,7 @@ TOP_BLOCKS = [
     "Alu",
     "AluUart",
     "Decoder",
+    "RegFile",
     "System",
     "Top",
 ]
@@ -29,8 +30,11 @@ def get_scala_test_sources():
     return glob.glob("./eepyu/**/*.scala", recursive=True)
 
 
-def get_mill_cmd(cmd):
-    os.environ["EEPYU_SIM_OPTS"] = "iverilog"
+def get_mill_cmd(cmd, verilator=False):
+    if verilator:
+        os.environ["EEPYU_SIM_OPTS"] = "verilator"
+    else:
+        os.environ["EEPYU_SIM_OPTS"] = "iverilog"
     return f"./mill {cmd}"
 
 
@@ -93,10 +97,14 @@ def task_wave():
 
 
 def task_test():
-    def get_test_cmd(top, sub_test):
-        # For now, we have to run iverilog outside the OSS cad suite.
-        # cmd = with_oss_cad_suite(get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests"))
-        cmd = get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests")
+    def get_test_cmd(top, sub_test, verilator):
+        if verilator:
+            cmd = with_oss_cad_suite(
+                get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests", True)
+            )
+        else:
+            # For now, we have to run iverilog outside the OSS cad suite.
+            cmd = get_mill_cmd(f"eepyu.test.testOnly eepyu.{top}Tests")
 
         # ScalaTest syntax to run specific commands
         if len(sub_test) > 0:
@@ -108,7 +116,15 @@ def task_test():
         yield {
             "name": top,
             "actions": [CmdAction(partial(get_test_cmd, top))],
-            "params": [{"name": "sub_test", "short": "t", "default": ""}],
+            "params": [
+                {"name": "sub_test", "short": "t", "default": ""},
+                {
+                    "name": "verilator",
+                    "long": "verilator",
+                    "type": bool,
+                    "default": False,
+                },
+            ],
             "file_dep": get_scala_sources() + get_scala_test_sources(),
             "uptodate": [False],
             "verbosity": 2,
