@@ -89,6 +89,8 @@ class AluTests extends AnyFunSuite {
     case AluOp.XOR => (x, y) => x ^ y
     case AluOp.EQ  => (x, y) => if (x == y) 1 else 0
     case AluOp.NE  => (x, y) => if (x != y) 1 else 0
+    case AluOp.LT  => (x, y) => if (x < y) 1 else 0
+    case AluOp.GE  => (x, y) => if (x > y) 1 else 0
     case AluOp.SLL => (x, y) => x << y
     case AluOp.SRL => (x, y) => (x & u32Max) >>> y
     case AluOp.SRA => (x, y) => x.toInt >> y
@@ -179,6 +181,14 @@ class AluTests extends AnyFunSuite {
 
       checkAluOpRange(dut, AluOp.SRA, -20 until 20)
       checkRandom(dut, AluOp.SRA)
+    }
+  }
+
+  test("AluOp.SLT") {
+    compiled.doSim { dut =>
+      dut.clockDomain.forkStimulus(10)
+      checkAluOpRange(dut, AluOp.LT, -20 until 20)
+      // checkRandom(dut, AluOp.LT)
     }
   }
 }

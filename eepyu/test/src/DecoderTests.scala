@@ -9,7 +9,7 @@ import com.carlosedp.riscvassembler.RISCVAssembler
 class DecoderTests extends AnyFunSuite {
   def assemble(inst: String) = BigInt(RISCVAssembler.binOutput(inst), 2)
 
-  def checkRType(decoder: Decoder, inst: String) = {
+  def checkRType(decoder: Decoder, inst: String, aluOp: AluOp.E, rd: Int, rs1: Int, rs2: Int) = {
     decoder.io.inst #= assemble(inst)
     sleep(1)
     assert(!decoder.io.error.toBoolean)
@@ -18,9 +18,13 @@ class DecoderTests extends AnyFunSuite {
     assert(!decoder.io.sType.toBoolean)
     assert(!decoder.io.jType.toBoolean)
     assert(!decoder.io.bType.toBoolean)
+    assert(decoder.io.rd.toInt == rd)
+    assert(decoder.io.rs1.toInt == rs1)
+    assert(decoder.io.rs2.toInt == rs2)
+    assert(decoder.io.aluOp.toEnum == aluOp)
   }
 
-  def checkIType(decoder: Decoder, inst: String) = {
+  def checkIType(decoder: Decoder, inst: String, aluOp: AluOp.E, rd: Int, rs1: Int, imm: Int) = {
     decoder.io.inst #= assemble(inst)
     sleep(1)
     assert(!decoder.io.error.toBoolean)
@@ -29,6 +33,10 @@ class DecoderTests extends AnyFunSuite {
     assert(!decoder.io.sType.toBoolean)
     assert(!decoder.io.jType.toBoolean)
     assert(!decoder.io.bType.toBoolean)
+    assert(decoder.io.rd.toInt == rd)
+    assert(decoder.io.rs1.toInt == rs1)
+    assert(decoder.io.imm.toInt == imm)
+    assert(decoder.io.aluOp.toEnum == aluOp)
   }
 
   def checkSType(decoder: Decoder, inst: String) = {
@@ -42,7 +50,7 @@ class DecoderTests extends AnyFunSuite {
     assert(!decoder.io.bType.toBoolean)
   }
 
-  def checkJType(decoder: Decoder, inst: String) = {
+  def checkJType(decoder: Decoder, inst: String, rd: Int, imm: Int) = {
     decoder.io.inst #= assemble(inst)
     sleep(1)
     assert(!decoder.io.error.toBoolean)
@@ -51,9 +59,11 @@ class DecoderTests extends AnyFunSuite {
     assert(!decoder.io.sType.toBoolean)
     assert(decoder.io.jType.toBoolean)
     assert(!decoder.io.bType.toBoolean)
+    assert(decoder.io.rd.toInt == rd)
+    assert(decoder.io.imm.toInt == imm)
   }
 
-  def checkBType(decoder: Decoder, inst: String) = {
+  def checkBType(decoder: Decoder, inst: String, aluOp: AluOp.E, rs1: Int, rs2: Int, imm: Int) = {
     decoder.io.inst #= assemble(inst)
     sleep(1)
     assert(!decoder.io.error.toBoolean)
@@ -62,6 +72,10 @@ class DecoderTests extends AnyFunSuite {
     assert(!decoder.io.sType.toBoolean)
     assert(!decoder.io.jType.toBoolean)
     assert(decoder.io.bType.toBoolean)
+    assert(decoder.io.rs1.toInt == rs1)
+    assert(decoder.io.rs2.toInt == rs2)
+    assert(decoder.io.imm.toInt == imm)
+    assert(decoder.io.aluOp.toEnum == aluOp)
   }
 
   val compiled = Config.sim.compile(new Decoder)
@@ -76,61 +90,61 @@ class DecoderTests extends AnyFunSuite {
 
   test("Decode ADD") {
     compiled.doSim { dut =>
-      checkRType(dut, "add x0, x1, x2")
+      checkRType(dut, "add x0, x1, x2", AluOp.ADD, 0, 1, 2)
     }
   }
 
   test("Decode SUB") {
     compiled.doSim { dut =>
-      checkRType(dut, "sub x0, x1, x2")
+      checkRType(dut, "sub x0, x1, x2", AluOp.SUB, 0, 1, 2)
     }
   }
 
   test("Decode SLL") {
     compiled.doSim { dut =>
-      checkRType(dut, "sll x0, x1, x2")
+      checkRType(dut, "sll x0, x1, x2", AluOp.SLL, 0, 1, 2)
     }
   }
 
   test("Decode SLT") {
     compiled.doSim { dut =>
-      checkRType(dut, "slt x0, x1, x2")
+      checkRType(dut, "slt x0, x1, x2", AluOp.LT, 0, 1, 2)
     }
   }
 
   test("Decode SLTU") {
     compiled.doSim { dut =>
-      checkRType(dut, "sltu x0, x1, x2")
+      checkRType(dut, "sltu x0, x1, x2", AluOp.LTU, 0, 1, 2)
     }
   }
 
   test("Decode XOR") {
     compiled.doSim { dut =>
-      checkRType(dut, "xor x0, x1, x2")
+      checkRType(dut, "xor x0, x1, x2", AluOp.XOR, 0, 1, 2)
     }
   }
 
   test("Decode SRL") {
     compiled.doSim { dut =>
-      checkRType(dut, "srl x0, x1, x2")
+      checkRType(dut, "srl x0, x1, x2", AluOp.SRL, 0, 1, 2)
     }
   }
 
   test("Decode SRA") {
     compiled.doSim { dut =>
-      checkRType(dut, "sra x0, x1, x2")
+      checkRType(dut, "sra x0, x1, x2", AluOp.SRA, 0, 1, 2)
     }
   }
 
   test("Decode OR") {
     compiled.doSim { dut =>
-      checkRType(dut, "or x0, x1, x2")
+      checkRType(dut, "or x0, x1, x2", AluOp.OR, 0, 1, 2)
     }
   }
 
   test("Decode AND") {
     compiled.doSim { dut =>
-      checkRType(dut, "and x0, x1, x2")
+      checkRType(dut, "and x0, x1, x2", AluOp.AND, 0, 1, 2)
     }
   }
 
@@ -138,91 +152,120 @@ class DecoderTests extends AnyFunSuite {
 
   test("Decode ADDI") {
     compiled.doSim { dut =>
-      checkIType(dut, "addi x1, x2, 3")
+      checkIType(dut, "addi x0, x1, 2", AluOp.ADD, 0, 1, 2)
     }
   }
 
   test("Decode SLLI") {
     compiled.doSim { dut =>
-      checkIType(dut, "slli x0, x1, 2")
+      checkIType(dut, "slli x0, x1, 2", AluOp.SLL, 0, 1, 2)
     }
   }
 
   test("Decode SLTI") {
     compiled.doSim { dut =>
-      checkIType(dut, "slti x0, x1, 2")
+      checkIType(dut, "slti x0, x1, 2", AluOp.LT, 0, 1, 2)
     }
   }
 
   test("Decode SLTIU") {
     compiled.doSim { dut =>
-      checkIType(dut, "sltiu x0, x1, 2")
+      checkIType(dut, "sltiu x0, x1, 2", AluOp.LTU, 0, 1, 2)
     }
   }
 
   test("Decode XORI") {
     compiled.doSim { dut =>
-      checkIType(dut, "xori x0, x1, 2")
+      checkIType(dut, "xori x0, x1, 2", AluOp.XOR, 0, 1, 2)
     }
   }
 
   test("Decode SRLI") {
     compiled.doSim { dut =>
-      checkIType(dut, "srli x0, x1, 2")
+      checkIType(dut, "srli x0, x1, 2", AluOp.SRL, 0, 1, 2)
     }
   }
 
   test("Decode SRAI") {
     compiled.doSim { dut =>
-      checkIType(dut, "srai x0, x1, 2")
+      // SRAI is distinguished from SRLI by a high bit in the immediate
+      checkIType(dut, "srai x0, x1, 2", AluOp.SRA, 0, 1, 1026)
     }
   }
 
   test("Decode ORI") {
     compiled.doSim { dut =>
-      checkIType(dut, "ori x0, x1, 2")
+      checkIType(dut, "ori x0, x1, 2", AluOp.OR, 0, 1, 2)
     }
   }
 
   test("Decode ANDI") {
     compiled.doSim { dut =>
-      checkIType(dut, "andi x0, x1, 2")
+      checkIType(dut, "andi x0, x1, 2", AluOp.AND, 0, 1, 2)
     }
   }
 
   test("Decode LB") {
     compiled.doSim { dut =>
-      checkIType(dut, "lb x0, 2(x1)")
+      checkIType(dut, "lb x0, 2(x1)", AluOp.ADD, 0, 1, 2)
     }
   }
 
   test("Decode LH") {
     compiled.doSim { dut =>
-      checkIType(dut, "lh x0, 2(x1)")
+      checkIType(dut, "lh x0, 2(x1)", AluOp.ADD, 0, 1, 2)
     }
   }
 
   test("Decode LW") {
     compiled.doSim { dut =>
-      checkIType(dut, "lw x0, 2(x1)")
+      checkIType(dut, "lw x0, 2(x1)", AluOp.ADD, 0, 1, 2)
     }
   }
 
   test("Decode LBU") {
     compiled.doSim { dut =>
-      checkIType(dut, "lbu x0, 2(x1)")
+      checkIType(dut, "lbu x0, 2(x1)", AluOp.ADD, 0, 1, 2)
     }
   }
 
   test("Decode LHU") {
     compiled.doSim { dut =>
-      checkIType(dut, "lhu x0, 2(x1)")
+      checkIType(dut, "lhu x0, 2(x1)", AluOp.ADD, 0, 1, 2)
     }
   }
 
   test("Decode JALR") {
     compiled.doSim { dut =>
-      checkIType(dut, "jalr x0, x1, 2")
+      checkIType(dut, "jalr x0, x1, 2", AluOp.ADD, 0, 1, 2)
     }
+  }
+
+  test("Decode JAL") {
+    compiled.doSim { dut => checkJType(dut, "jal x0, 4", 0, 4) }
+  }
+
+  test("Decode BEQ") {
+    compiled.doSim { dut => checkBType(dut, "beq x0, x1, 4", AluOp.EQ, 0, 1, 4) }
+  }
+
+  test("Decode BNE") {
+    compiled.doSim { dut => checkBType(dut, "bne x0, x1, 4", AluOp.NE, 0, 1, 4) }
+  }
+
+  test("Decode BGE") {
+    compiled.doSim { dut => checkBType(dut, "bge x0, x1, 4", AluOp.GE, 0, 1, 4) }
+  }
+
+  test("Decode BLT") {
+    compiled.doSim { dut => checkBType(dut, "blt x0, x1, 4", AluOp.LT, 0, 1, 4) }
+  }
+
+  test("Decode BGEU") {
+    compiled.doSim { dut => checkBType(dut, "bgeu x0, x1, 4", AluOp.GEU, 0, 1, 4) }
+  }
+
+  test("Decode BLTU") {
+    compiled.doSim { dut => checkBType(dut, "bltu x0, x1, 4", AluOp.LTU, 0, 1, 4) }
   }
 }

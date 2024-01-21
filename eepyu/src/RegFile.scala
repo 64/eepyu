@@ -2,6 +2,7 @@ package eepyu
 
 import spinal.core._
 import spinal.core.formal._
+import spinal.core.sim._
 
 class RegFile extends Component {
   val io = new Bundle {
@@ -18,8 +19,8 @@ class RegFile extends Component {
   // TODO: Formal
   // TODO: Don't store anything for the zero register
 
-  val rs1mem = Mem(UInt(32 bits), Array.fill(32)(U(0)))
-  val rs2mem = Mem(UInt(32 bits), Array.fill(32)(U(0)))
+  val rs1mem = Mem(UInt(32 bits), Array.fill(32)(U(0))) simPublic
+  val rs2mem = Mem(UInt(32 bits), Array.fill(32)(U(0))) simPublic
 
   io.rs1Data := rs1mem.readSync(io.rs1)
   io.rs2Data := rs2mem.readSync(io.rs2)

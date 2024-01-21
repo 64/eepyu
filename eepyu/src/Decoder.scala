@@ -2,6 +2,10 @@ package eepyu
 
 import spinal.core._
 
+object InstFormat extends Enumeration {
+  val RType, IType, SType, JType, BType, UType = Value
+}
+
 object Inst {
   def ADD = M"0000000----------000-----0110011"
   def SUB = M"0100000----------000-----0110011"
@@ -44,30 +48,97 @@ object Inst {
   def LUI = M"-------------------------0110111"
   def AUIPC = M"-------------------------0010111"
 
-  val rTypeInstructions = List(ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND)
-  val iTypeInstructions = List(ADDI, SLLI, SLTI, SLTIU, XORI, SRLI, SRAI, ORI, ANDI, LB, LH, LW, LBU, LHU, JALR)
-  val sTypeInstructions = List(SB, SH, SW)
-  val jTypeInstructions = List(JAL)
-  val bTypeInstructions = List(BEQ, BNE, BLT, BGE, BLTU, BGEU)
+  val instMap = Map(
+    ADD -> (InstFormat.RType, AluOp.ADD),
+    SUB -> (InstFormat.RType, AluOp.SUB),
+    SLL -> (InstFormat.RType, AluOp.SLL),
+    SLT -> (InstFormat.RType, AluOp.LT),
+    SLTU -> (InstFormat.RType, AluOp.LTU),
+    XOR -> (InstFormat.RType, AluOp.XOR),
+    SRL -> (InstFormat.RType, AluOp.SRL),
+    SRA -> (InstFormat.RType, AluOp.SRA),
+    OR -> (InstFormat.RType, AluOp.OR),
+    AND -> (InstFormat.RType, AluOp.AND),
 
-  val allInstructions =
-    rTypeInstructions ++ iTypeInstructions ++ sTypeInstructions ++ jTypeInstructions ++ bTypeInstructions
+    ADDI -> (InstFormat.IType, AluOp.ADD),
+    SLLI -> (InstFormat.IType, AluOp.SLL),
+    SLTI -> (InstFormat.IType, AluOp.LT),
+    SLTIU -> (InstFormat.IType, AluOp.LTU),
+    XORI -> (InstFormat.IType, AluOp.XOR),
+    SRLI -> (InstFormat.IType, AluOp.SRL),
+    SRAI -> (InstFormat.IType, AluOp.SRA),
+    ORI -> (InstFormat.IType, AluOp.OR),
+    ANDI -> (InstFormat.IType, AluOp.AND),
+    LB -> (InstFormat.IType, AluOp.ADD),
+    LH -> (InstFormat.IType, AluOp.ADD),
+    LW -> (InstFormat.IType, AluOp.ADD),
+    LBU -> (InstFormat.IType, AluOp.ADD),
+    LHU -> (InstFormat.IType, AluOp.ADD),
+    JALR -> (InstFormat.IType, AluOp.ADD),
+
+    SB -> (InstFormat.SType, AluOp.ADD),
+    SH -> (InstFormat.SType, AluOp.ADD),
+    SW -> (InstFormat.SType, AluOp.ADD),
+
+    BEQ -> (InstFormat.BType, AluOp.EQ),
+    BNE -> (InstFormat.BType, AluOp.NE),
+    BLT -> (InstFormat.BType, AluOp.LT),
+    BGE -> (InstFormat.BType, AluOp.GE),
+    BLTU -> (InstFormat.BType, AluOp.LTU),
+    BGEU -> (InstFormat.BType, AluOp.GEU),
+
+    JAL -> (InstFormat.JType, AluOp.ADD),
+
+    LUI -> (InstFormat.UType, AluOp.ADD),
+    AUIPC -> (InstFormat.UType, AluOp.ADD),
+  )
+}
+
+case class Imm(inst: Bits) extends Area {
+  // immediates
+  def i = inst(31 downto 20)
+  def h = inst(31 downto 24)
+  def s = inst(31 downto 25) ## inst(11 downto 7)
+  def b = inst(31) ## inst(7) ## inst(30 downto 25) ## inst(11 downto 8)
+  def u = inst(31 downto 12) ## U"x000"
+  def j = inst(31) ## inst(19 downto 12) ## inst(20) ## inst(30 downto 21)
+  def z = inst(19 downto 15)
+
+  // sign-extend immediates
+  def i_sext = B((19 downto 0) -> i(11)) ## i
+  def h_sext = B((23 downto 0) -> h(7)) ## h
+  def s_sext = B((19 downto 0) -> s(11)) ## s
+  def b_sext = B((18 downto 0) -> b(11)) ## b ## False
+  def j_sext = B((10 downto 0) -> j(19)) ## j ## False
+}
+
+class DecoderIO extends Bundle {
+  val inst = in Bits (32 bits)
+
+  val rType = out Bool ()
+  val iType = out Bool ()
+  val sType = out Bool ()
+  val jType = out Bool ()
+  val bType = out Bool ()
+  val uType = out Bool ()
+
+  val rs1 = out UInt (5 bits)
+  val rs2 = out UInt (5 bits)
+  val rd = out UInt (5 bits)
+
+  val imm = out UInt (32 bits)
+
+  val aluOp = out(AluOp())
+
+  val error = out Bool ()
 }
 
 class Decoder extends Component {
-  val io = new Bundle {
-    val inst = in UInt (32 bits)
+  val io = new DecoderIO
 
-    val rType = out Bool ()
-    val iType = out Bool ()
-    val sType = out Bool ()
-    val jType = out Bool ()
-    val bType = out Bool ()
-
-    val error = out Bool ()
-  }
-
-  import Inst._
+  io.rs1 := io.inst(19 downto 15).asUInt
+  io.rs2 := io.inst(24 downto 20).asUInt
+  io.rd := io.inst(11 downto 7).asUInt
 
   io.error := False
   io.rType := False
@@ -75,36 +146,32 @@ class Decoder extends Component {
   io.sType := False
   io.jType := False
   io.bType := False
+  io.uType := False
 
   switch(io.inst) {
-    for (inst <- Inst.rTypeInstructions) {
+    import Inst._
+
+    for ((inst, (format, aluOp)) <- Inst.instMap) {
       is(inst) {
-        io.rType := True
-      }
-    }
-    for (inst <- Inst.iTypeInstructions) {
-      is(inst) {
-        io.iType := True
-      }
-    }
-    for (inst <- Inst.sTypeInstructions) {
-      is(inst) {
-        io.sType := True
-      }
-    }
-    for (inst <- Inst.jTypeInstructions) {
-      is(inst) {
-        io.jType := True
-      }
-    }
-    for (inst <- Inst.bTypeInstructions) {
-      is(inst) {
-        io.bType := True
+        val (formatSignal, imm) = format match {
+          case InstFormat.RType => (io.rType, B(0))
+          case InstFormat.IType => (io.iType, Imm(io.inst).i_sext)
+          case InstFormat.SType => (io.sType, Imm(io.inst).s_sext)
+          case InstFormat.JType => (io.jType, Imm(io.inst).j_sext)
+          case InstFormat.BType => (io.bType, Imm(io.inst).b_sext)
+          case InstFormat.UType => (io.uType, Imm(io.inst).u)
+        }
+
+        io.aluOp := aluOp
+        io.imm := imm.asUInt.resize(32 bits)
+        formatSignal := True
       }
     }
 
     default {
+      io.aluOp := AluOp.ADD
       io.error := True
+      io.imm := 0 // ?
     }
   }
 }

@@ -3,7 +3,7 @@ package eepyu
 import spinal.core._
 
 object AluOp extends SpinalEnum {
-  val ADD, SUB, AND, OR, XOR, EQ, NE, SLL, SRL, SRA = newElement()
+  val ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, EQ, NE, LT, GE, LTU, GEU = newElement()
 }
 
 class Alu extends Component {
@@ -61,15 +61,19 @@ class Alu extends Component {
     AluOp.AND -> (io.src1 & io.src2),
     AluOp.OR -> (io.src1 | io.src2),
     AluOp.XOR -> (io.src1 ^ io.src2),
-    AluOp.EQ -> (io.src1 === io.src2).asUInt.resized,
-    AluOp.NE -> (io.src1 =/= io.src2).asUInt.resized,
     // Single cycle shifts, but big area usage
     // AluOp.SLL -> (io.src1 |<< io.src2(0 until 5)),
     // AluOp.SRL -> (io.src1 |>> io.src2(0 until 5)),
     // AluOp.SRA -> (io.src1.asSInt |>> io.src2(0 until 5)).asUInt,
     AluOp.SLL -> shiftVal,
     AluOp.SRL -> shiftVal,
-    AluOp.SRA -> shiftVal
+    AluOp.SRA -> shiftVal,
+    AluOp.EQ -> (io.src1 === io.src2).asUInt.resized,
+    AluOp.NE -> (io.src1 =/= io.src2).asUInt.resized,
+    AluOp.LT -> (io.src1.asSInt < io.src2.asSInt).asUInt.resized,
+    AluOp.GE -> (io.src1.asSInt < io.src2.asSInt).asUInt.resized,
+    AluOp.LTU -> (io.src1 < io.src2).asUInt.resized,
+    AluOp.GEU -> (io.src1 < io.src2).asUInt.resized
   )
 }
 

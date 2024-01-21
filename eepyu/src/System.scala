@@ -27,7 +27,7 @@ case class System() extends Component {
   io.redLeds(0) := False
   io.redLeds(1) := False
   io.redLeds(2) := False
-  io.redLeds(3) := False
+  // io.redLeds(3) := False
   // io.greenLed := False
 
   // val aluUart = new util.AluUart
@@ -53,6 +53,11 @@ case class System() extends Component {
   //   io.redLeds(3) := decoder.io.jType
   //   io.greenLed := decoder.io.bType
   // }
+
+  val core = new Core()
+  val mem = new Memory(core.imemWidth, core.memWidth)
+  mem.io <> core.io.mem
+  io.redLeds(3) := core.io.error
 
   GenerationFlags.synthesis {
     io.greenLed := True
