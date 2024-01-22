@@ -56,7 +56,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
       pc := nextPc
     }
 
-    io.mem.imemReadAddr := fetchValid ? nextPc | pc
+    io.mem.imemReadAddr := isFiring ? nextPc | pc
     PC := pc
     INST := io.mem.imemReadData.asBits
   }
@@ -82,7 +82,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     val anyHazard = rawHazardInExecute || rawHazardInWriteback
 
     when(anyHazard) {
-      report(Seq("e hazard: ", rawHazardInExecute, ", w hazard: ", rawHazardInWriteback))
+      // report(Seq("e hazard: ", rawHazardInExecute, ", w hazard: ", rawHazardInWriteback))
       cf2d.haltIt()
     }
   }
@@ -169,7 +169,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     io.rvfi_valid := isFiring
     io.rvfi_insn := DECODE.inst.asUInt
     io.rvfi_order := order
-    io.rvfi_halt := DECODE.inst === 0
+    io.rvfi_halt := DECODE.error
   }
 
   Builder(f2d, /* sf2d, */ cf2d, d2e, /* sd2e, */ cd2e, e2w, /* se2w, */ ce2w)

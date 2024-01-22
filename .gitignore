@@ -34,6 +34,18 @@ bin/
 .settings
 .cache-main
 
+# Python
+__pycache__
+lib/
+lib64
+pyvenv.cfg
+
+simWorkspace/
+tmp/
+null
+.doit.db
+include/
+
 #User
 /*.vhd
 /*.v
@@ -41,10 +53,3 @@ bin/
 *.json
 *.vcd
 !tester/src/test/resources/*.vhd
-
-
-simWorkspace/
-tmp/
-null
-__pycache__
-.doit.db

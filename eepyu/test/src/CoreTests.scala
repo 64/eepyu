@@ -5,7 +5,14 @@ import spinal.core.sim._
 
 import org.scalatest.funsuite._
 import com.carlosedp.riscvassembler.RISCVAssembler
+
 import spinal.lib.misc.pipeline._
+
+import net.fornwall.jelf.ElfFile
+import java.io.File
+import net.fornwall.jelf.ElfSegment
+import scala.collection.mutable.ArrayBuffer
+import java.io.RandomAccessFile
 
 class CoreTests extends AnyFunSuite {
   def assemble(inst: String) = BigInt(RISCVAssembler.binOutput(inst), 2)
@@ -27,23 +34,23 @@ class CoreTests extends AnyFunSuite {
       }
     }
 
-    // val retireMonitor = fork {
-    //   while (true) {
-    //     dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean)
-    //     val inst = dut.io.rvfi_insn.toBigInt
-    //     // println(f"Retired instruction $inst%x")
-    //   }
-    // }
+    val retireMonitor = fork {
+      while (true) {
+        dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean)
+        val inst = dut.io.rvfi_insn.toBigInt
+        println(f"Retired instruction $inst%x")
+      }
+    }
   }
 
   def nextRetiredInstruction(dut: Core) = {
     dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean)
     val inst = dut.io.rvfi_insn.toBigInt
-    println(f"Retired instruction $inst%x")
+    // println(f"Retired instruction $inst%x")
     inst
   }
 
-  val compiled = Config.sim.compile(new Core(8, 8))
+  val compiled = Config.sim.compile(new Core(16, 8))
 
   test("should trap on illegal instruction") {
     compiled.doSim { dut =>
@@ -176,18 +183,14 @@ class CoreTests extends AnyFunSuite {
       assert(nextRetiredInstruction(dut) == assemble(program(0)))
       assert(nextRetiredInstruction(dut) == assemble(program(1)))
       assert(nextRetiredInstruction(dut) == assemble(program(2)))
-      // assert(nextRetiredInstruction(dut) == assemble(program(3)))
+      assert(nextRetiredInstruction(dut) == assemble(program(3)))
 
-      // assert(nextRetiredInstruction(dut) == assemble(program(2)))
-      // assert(nextRetiredInstruction(dut) == assemble(program(3)))
-      //
-      // assert(nextRetiredInstruction(dut) == assemble(program(4)))
-      // assert(nextRetiredInstruction(dut) == assemble(program(5)))
-      // assert(nextRetiredInstruction(dut) == assemble(program(6)))
+      assert(nextRetiredInstruction(dut) == assemble(program(2)))
+      assert(nextRetiredInstruction(dut) == assemble(program(3)))
 
-      nextRetiredInstruction(dut)
-      nextRetiredInstruction(dut)
-      nextRetiredInstruction(dut)
+      assert(nextRetiredInstruction(dut) == assemble(program(4)))
+      assert(nextRetiredInstruction(dut) == assemble(program(5)))
+      assert(nextRetiredInstruction(dut) == assemble(program(6)))
     }
   }
 
@@ -218,5 +221,34 @@ class CoreTests extends AnyFunSuite {
     }
   }
 
-  test("rv32ui-p-add") {}
+  test("rv32ui-p-add") {
+    val imem = ArrayBuffer.empty[BigInt]
+
+    val file = new File("../../opt/riscv-tests/isa/rv32ui-p-add")
+    val rafile = new RandomAccessFile(file, "r")
+    val elf = ElfFile.from(file)
+
+    for (i <- 0 until elf.e_phnum) {
+      val segment = elf.getProgramHeader(i)
+      if ((segment.p_flags & ElfSegment.PT_LOAD) != 0) {
+        for (addr <- 0L until segment.p_filesz by 4) {
+          rafile.seek(segment.p_offset + addr)
+          val bytes = Seq(
+            rafile.readUnsignedByte(),
+            rafile.readUnsignedByte(),
+            rafile.readUnsignedByte(),
+            rafile.readUnsignedByte()
+          )
+          val word: BigInt = (BigInt(bytes(3)) << 24) | (BigInt(bytes(2)) << 16) | (BigInt(bytes(1)) << 8) | bytes(0)
+          imem += word
+        }
+      }
+    }
+
+    compiled.doSim { dut =>
+      withProgramMemory(dut, imem.toSeq)
+      dut.clockDomain.waitSamplingWhere(dut.io.error.toBoolean)
+      assert(dut.io.rvfi_insn.toBigInt == 1)
+    }
+  }
 }

@@ -31,7 +31,7 @@ class Memory(imemWidth: Int, memWidth: Int, initialInstructionMemory: Seq[UInt] 
   io.imemReadData := imem.readSync(io.imemReadAddr >> 2)
   io.memReadData := mem.readSync(io.memReadAddr >> 2)
 
-  val mask = Bits(4 bits)
+  val mask = Bits(32 bits)
   mask := (
     (31 downto 24) -> io.memWriteMask(3),
     (23 downto 16) -> io.memWriteMask(2),

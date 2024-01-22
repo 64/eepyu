@@ -55,7 +55,7 @@ case class System() extends Component {
   // }
 
   val core = new Core()
-  val mem = new Memory(core.imemWidth, core.memWidth)
+  val mem = new Memory(core.imemWidth, core.memWidth, Seq(19, 4292866159L))
   mem.io <> core.io.mem
   io.redLeds(3) := core.io.error
 
