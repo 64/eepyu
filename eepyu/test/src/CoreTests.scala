@@ -201,6 +201,8 @@ class CoreTests extends AnyFunSuite {
         "addi x2, x0, 3",
         "sub x3, x1, x2",
         "xori x0, x0, 0",
+        "addi x6, x0, 0",
+        "add x6, x0, x6",
         "xori x0, x0, 0",
         "xori x0, x0, 0",
         "xori x0, x0, 0",
@@ -208,12 +210,11 @@ class CoreTests extends AnyFunSuite {
         "xori x0, x0, 0",
         "xori x0, x0, 0",
         "xori x0, x0, 0",
-        "xori x0, x0, 0",
-        "xori x0, x0, 0"
+        "unimp"
       )
     compiled.doSim { dut =>
       withAssembledProgramMemory(dut, program)
-      dut.clockDomain.waitSampling(10)
+      dut.clockDomain.waitSampling(15)
 
       assert(dut.regFile.rs1mem.getBigInt(1) == 5)
       assert(dut.regFile.rs1mem.getBigInt(2) == 3)
@@ -221,10 +222,32 @@ class CoreTests extends AnyFunSuite {
     }
   }
 
-  test("rv32ui-p-add") {
+  test("hazard2") {
+    val program =
+      Seq(
+        "addi x1, x0, 5",
+        "add x1, x1, x1",
+        "xori x0, x0, 0",
+        "xori x0, x0, 0",
+        "xori x0, x0, 0",
+        "xori x0, x0, 0",
+        "xori x0, x0, 0",
+        "xori x0, x0, 0",
+        "xori x0, x0, 0",
+        "unimp"
+      )
+    compiled.doSim { dut =>
+      withAssembledProgramMemory(dut, program)
+      dut.clockDomain.waitSampling(10)
+
+      assert(dut.regFile.rs1mem.getBigInt(1) == 10)
+    }
+  }
+
+  def runRiscvTest(name: String) = {
     val imem = ArrayBuffer.empty[BigInt]
 
-    val file = new File("../../opt/riscv-tests/isa/rv32ui-p-add")
+    val file = new File("../../opt/riscv-tests/isa/" + name)
     val rafile = new RandomAccessFile(file, "r")
     val elf = ElfFile.from(file)
 
@@ -246,9 +269,61 @@ class CoreTests extends AnyFunSuite {
     }
 
     compiled.doSim { dut =>
+      SimTimeout(5000)
       withProgramMemory(dut, imem.toSeq)
-      dut.clockDomain.waitSamplingWhere(dut.io.error.toBoolean)
-      assert(dut.io.rvfi_insn.toBigInt == 1)
+      dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean && dut.io.rvfi_halt.toBoolean)
+      val gp = dut.regFile.rs1mem.getBigInt(3)
+      assert(dut.io.rvfi_insn.toBigInt != 2, s": test number $gp failed")
+      assert(dut.io.rvfi_insn.toBigInt == 1, ": unexpected exit code")
+    }
+  }
+
+  val tests = Seq(
+    "rv32ui-p-add",
+    "rv32ui-p-addi",
+    "rv32ui-p-and",
+    "rv32ui-p-andi",
+    "rv32ui-p-auipc",
+    "rv32ui-p-beq",
+    "rv32ui-p-bge",
+    "rv32ui-p-bgeu",
+    "rv32ui-p-blt",
+    "rv32ui-p-bltu",
+    "rv32ui-p-bne",
+    // "rv32ui-p-fence_i",
+    "rv32ui-p-jal",
+    "rv32ui-p-jalr",
+    // "rv32ui-p-lb",
+    // "rv32ui-p-lbu",
+    // "rv32ui-p-lh",
+    // "rv32ui-p-lhu",
+    // "rv32ui-p-lui",
+    // "rv32ui-p-lw",
+    // "rv32ui-p-ma_data",
+    "rv32ui-p-or",
+    "rv32ui-p-ori",
+    // "rv32ui-p-sb",
+    // "rv32ui-p-sh",
+    "rv32ui-p-simple",
+    "rv32ui-p-sll",
+    "rv32ui-p-slli",
+    "rv32ui-p-slt",
+    "rv32ui-p-slti",
+    "rv32ui-p-sltiu",
+    "rv32ui-p-sltu",
+    "rv32ui-p-sra",
+    "rv32ui-p-srai",
+    "rv32ui-p-srl",
+    "rv32ui-p-srli",
+    "rv32ui-p-sub",
+    // "rv32ui-p-sw",
+    "rv32ui-p-xor",
+    "rv32ui-p-xori",
+  )
+
+  for (testName <- tests) {
+    test(testName) {
+      runRiscvTest(testName)
     }
   }
 }

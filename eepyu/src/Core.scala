@@ -12,8 +12,8 @@ class CoreIO(imemWidth: Int, memWidth: Int) extends Bundle {
 
   val rvfi_valid = out Bool ()
   val rvfi_insn = out UInt (32 bits)
-  val rvfi_order = out UInt(64 bits)
-  val rvfi_halt = out Bool()
+  val rvfi_order = out UInt (64 bits)
+  val rvfi_halt = out Bool ()
 }
 
 class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
@@ -73,9 +73,10 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     val readsRs2 = decoder.io.rType || decoder.io.sType || decoder.io.bType
 
     def hazardInStage(stage: Node) = {
-      val rs1Hazard = stage(DECODE).rd === decoder.io.rs1 && decoder.io.rs1 =/= 0
-      val rs2Hazard = stage(DECODE).rd === decoder.io.rs2 && decoder.io.rs2 =/= 0
-      stage.isValid && (readsRs1 && rs1Hazard) || (readsRs2 && rs2Hazard)
+      val nonZero = stage(DECODE).rd =/= 0
+      val rs1Hazard = stage(DECODE).rd === decoder.io.rs1
+      val rs2Hazard = stage(DECODE).rd === decoder.io.rs2
+        stage.isValid && nonZero && ((readsRs1 && rs1Hazard) || (readsRs2 && rs2Hazard))
     }
     val rawHazardInExecute = hazardInStage(execute)
     val rawHazardInWriteback = hazardInStage(writeback)
@@ -134,7 +135,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
       when(isFiring && alu.io.dst(0)) {
         // hack
         pc := (PC + DECODE.imm).resized
-        report(Seq("branching to PC ", pc ))
+        // report(Seq("branching to PC ", pc))
         cf2d.throwIt()
         fetchValid := False
         fetch.valid := False
@@ -142,8 +143,12 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     }
 
     when(DECODE.uType) {
-      // todo: optimize ?
-      ALU_RESULT := (PC + DECODE.imm).resized
+      when(DECODE.pcRel) {
+        // todo: use ALU ?
+        ALU_RESULT := (PC + DECODE.imm).resized
+      }.otherwise {
+        ALU_RESULT := DECODE.imm.resized
+      }
     }
 
     io.mem.memWriteAddr := 0

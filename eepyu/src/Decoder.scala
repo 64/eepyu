@@ -59,7 +59,6 @@ object Inst {
     SRA -> (InstFormat.RType, AluOp.SRA),
     OR -> (InstFormat.RType, AluOp.OR),
     AND -> (InstFormat.RType, AluOp.AND),
-
     ADDI -> (InstFormat.IType, AluOp.ADD),
     SLLI -> (InstFormat.IType, AluOp.SLL),
     SLTI -> (InstFormat.IType, AluOp.LT),
@@ -75,22 +74,18 @@ object Inst {
     LBU -> (InstFormat.IType, AluOp.ADD),
     LHU -> (InstFormat.IType, AluOp.ADD),
     JALR -> (InstFormat.IType, AluOp.ADD),
-
     SB -> (InstFormat.SType, AluOp.ADD),
     SH -> (InstFormat.SType, AluOp.ADD),
     SW -> (InstFormat.SType, AluOp.ADD),
-
     BEQ -> (InstFormat.BType, AluOp.EQ),
     BNE -> (InstFormat.BType, AluOp.NE),
     BLT -> (InstFormat.BType, AluOp.LT),
     BGE -> (InstFormat.BType, AluOp.GE),
     BLTU -> (InstFormat.BType, AluOp.LTU),
     BGEU -> (InstFormat.BType, AluOp.GEU),
-
     JAL -> (InstFormat.JType, AluOp.ADD),
-
     LUI -> (InstFormat.UType, AluOp.ADD),
-    AUIPC -> (InstFormat.UType, AluOp.ADD),
+    AUIPC -> (InstFormat.UType, AluOp.ADD)
   )
 }
 
@@ -121,6 +116,7 @@ class DecoderIO extends Bundle {
   val jType = out Bool ()
   val bType = out Bool ()
   val uType = out Bool ()
+  val pcRel = out Bool ()
 
   val rs1 = out UInt (5 bits)
   val rs2 = out UInt (5 bits)
@@ -147,6 +143,7 @@ class Decoder extends Component {
   io.jType := False
   io.bType := False
   io.uType := False
+  io.pcRel := False
 
   switch(io.inst) {
     import Inst._
@@ -160,6 +157,11 @@ class Decoder extends Component {
           case InstFormat.JType => (io.jType, Imm(io.inst).j_sext)
           case InstFormat.BType => (io.bType, Imm(io.inst).b_sext)
           case InstFormat.UType => (io.uType, Imm(io.inst).u)
+        }
+
+        // bit ad-hoc
+        if (inst == AUIPC) {
+          io.pcRel := True
         }
 
         io.aluOp := aluOp
