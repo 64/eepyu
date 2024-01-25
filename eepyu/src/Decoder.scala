@@ -10,6 +10,22 @@ object BranchType extends Enumeration {
   val None, Jump = Value
 }
 
+object MemOp extends Enumeration {
+  val None, Load, Store = Value
+}
+
+object MemMask extends Enumeration {
+  val None, Byte, HalfWord, Word = Value
+
+  def getInt(x: MemMask.Value) = {
+    x match {
+      case Byte     => 1
+      case HalfWord => 3
+      case Word     => 7
+    }
+  }
+}
+
 object Inst {
   def ADD = M"0000000----------000-----0110011"
   def SUB = M"0100000----------000-----0110011"
@@ -54,43 +70,43 @@ object Inst {
 
   val instMap = Map(
     // The branch types are a bit broken right now
-    ADD -> (InstFormat.RType, AluOp.ADD, BranchType.None),
-    SUB -> (InstFormat.RType, AluOp.SUB, BranchType.None),
-    SLL -> (InstFormat.RType, AluOp.SLL, BranchType.None),
-    SLT -> (InstFormat.RType, AluOp.LT, BranchType.None),
-    SLTU -> (InstFormat.RType, AluOp.LTU, BranchType.None),
-    XOR -> (InstFormat.RType, AluOp.XOR, BranchType.None),
-    SRL -> (InstFormat.RType, AluOp.SRL, BranchType.None),
-    SRA -> (InstFormat.RType, AluOp.SRA, BranchType.None),
-    OR -> (InstFormat.RType, AluOp.OR, BranchType.None),
-    AND -> (InstFormat.RType, AluOp.AND, BranchType.None),
-    ADDI -> (InstFormat.IType, AluOp.ADD, BranchType.None),
-    SLLI -> (InstFormat.IType, AluOp.SLL, BranchType.None),
-    SLTI -> (InstFormat.IType, AluOp.LT, BranchType.None),
-    SLTIU -> (InstFormat.IType, AluOp.LTU, BranchType.None),
-    XORI -> (InstFormat.IType, AluOp.XOR, BranchType.None),
-    SRLI -> (InstFormat.IType, AluOp.SRL, BranchType.None),
-    SRAI -> (InstFormat.IType, AluOp.SRA, BranchType.None),
-    ORI -> (InstFormat.IType, AluOp.OR, BranchType.None),
-    ANDI -> (InstFormat.IType, AluOp.AND, BranchType.None),
-    LB -> (InstFormat.IType, AluOp.ADD, BranchType.None),
-    LH -> (InstFormat.IType, AluOp.ADD, BranchType.None),
-    LW -> (InstFormat.IType, AluOp.ADD, BranchType.None),
-    LBU -> (InstFormat.IType, AluOp.ADD, BranchType.None),
-    LHU -> (InstFormat.IType, AluOp.ADD, BranchType.None),
-    JALR -> (InstFormat.IType, AluOp.ADD, BranchType.Jump),
-    SB -> (InstFormat.SType, AluOp.ADD, BranchType.None),
-    SH -> (InstFormat.SType, AluOp.ADD, BranchType.None),
-    SW -> (InstFormat.SType, AluOp.ADD, BranchType.None),
-    BEQ -> (InstFormat.BType, AluOp.EQ, BranchType.None),
-    BNE -> (InstFormat.BType, AluOp.NE, BranchType.None),
-    BLT -> (InstFormat.BType, AluOp.LT, BranchType.None),
-    BGE -> (InstFormat.BType, AluOp.GE, BranchType.None),
-    BLTU -> (InstFormat.BType, AluOp.LTU, BranchType.None),
-    BGEU -> (InstFormat.BType, AluOp.GEU, BranchType.None),
-    JAL -> (InstFormat.JType, AluOp.ADD, BranchType.None),
-    LUI -> (InstFormat.UType, AluOp.ADD, BranchType.None),
-    AUIPC -> (InstFormat.UType, AluOp.ADD, BranchType.None)
+    ADD -> (InstFormat.RType, AluOp.ADD, MemOp.None, MemMask.None, BranchType.None),
+    SUB -> (InstFormat.RType, AluOp.SUB, MemOp.None, MemMask.None, BranchType.None),
+    SLL -> (InstFormat.RType, AluOp.SLL, MemOp.None, MemMask.None, BranchType.None),
+    SLT -> (InstFormat.RType, AluOp.LT, MemOp.None, MemMask.None, BranchType.None),
+    SLTU -> (InstFormat.RType, AluOp.LTU, MemOp.None, MemMask.None, BranchType.None),
+    XOR -> (InstFormat.RType, AluOp.XOR, MemOp.None, MemMask.None, BranchType.None),
+    SRL -> (InstFormat.RType, AluOp.SRL, MemOp.None, MemMask.None, BranchType.None),
+    SRA -> (InstFormat.RType, AluOp.SRA, MemOp.None, MemMask.None, BranchType.None),
+    OR -> (InstFormat.RType, AluOp.OR, MemOp.None, MemMask.None, BranchType.None),
+    AND -> (InstFormat.RType, AluOp.AND, MemOp.None, MemMask.None, BranchType.None),
+    ADDI -> (InstFormat.IType, AluOp.ADD, MemOp.None, MemMask.None, BranchType.None),
+    SLLI -> (InstFormat.IType, AluOp.SLL, MemOp.None, MemMask.None, BranchType.None),
+    SLTI -> (InstFormat.IType, AluOp.LT, MemOp.None, MemMask.None, BranchType.None),
+    SLTIU -> (InstFormat.IType, AluOp.LTU, MemOp.None, MemMask.None, BranchType.None),
+    XORI -> (InstFormat.IType, AluOp.XOR, MemOp.None, MemMask.None, BranchType.None),
+    SRLI -> (InstFormat.IType, AluOp.SRL, MemOp.None, MemMask.None, BranchType.None),
+    SRAI -> (InstFormat.IType, AluOp.SRA, MemOp.None, MemMask.None, BranchType.None),
+    ORI -> (InstFormat.IType, AluOp.OR, MemOp.None, MemMask.None, BranchType.None),
+    ANDI -> (InstFormat.IType, AluOp.AND, MemOp.None, MemMask.None, BranchType.None),
+    LB -> (InstFormat.IType, AluOp.ADD, MemOp.Load, MemMask.Byte, BranchType.None),
+    LH -> (InstFormat.IType, AluOp.ADD, MemOp.Load, MemMask.HalfWord, BranchType.None),
+    LW -> (InstFormat.IType, AluOp.ADD, MemOp.Load, MemMask.Word, BranchType.None),
+    LBU -> (InstFormat.IType, AluOp.ADD, MemOp.Load, MemMask.Byte, BranchType.None),
+    LHU -> (InstFormat.IType, AluOp.ADD, MemOp.Load, MemMask.HalfWord, BranchType.None),
+    JALR -> (InstFormat.IType, AluOp.ADD, MemOp.None, MemMask.None, BranchType.Jump),
+    SB -> (InstFormat.SType, AluOp.ADD, MemOp.Store, MemMask.Byte, BranchType.None),
+    SH -> (InstFormat.SType, AluOp.ADD, MemOp.Store, MemMask.HalfWord, BranchType.None),
+    SW -> (InstFormat.SType, AluOp.ADD, MemOp.Store, MemMask.Word, BranchType.None),
+    BEQ -> (InstFormat.BType, AluOp.EQ, MemOp.None, MemMask.None, BranchType.None),
+    BNE -> (InstFormat.BType, AluOp.NE, MemOp.None, MemMask.None, BranchType.None),
+    BLT -> (InstFormat.BType, AluOp.LT, MemOp.None, MemMask.None, BranchType.None),
+    BGE -> (InstFormat.BType, AluOp.GE, MemOp.None, MemMask.None, BranchType.None),
+    BLTU -> (InstFormat.BType, AluOp.LTU, MemOp.None, MemMask.None, BranchType.None),
+    BGEU -> (InstFormat.BType, AluOp.GEU, MemOp.None, MemMask.None, BranchType.None),
+    JAL -> (InstFormat.JType, AluOp.ADD, MemOp.None, MemMask.None, BranchType.None),
+    LUI -> (InstFormat.UType, AluOp.ADD, MemOp.None, MemMask.None, BranchType.None),
+    AUIPC -> (InstFormat.UType, AluOp.ADD, MemOp.None, MemMask.None, BranchType.None)
   )
 }
 
@@ -121,8 +137,14 @@ class DecoderIO extends Bundle {
   val jType = out Bool ()
   val bType = out Bool ()
   val uType = out Bool ()
+
+  // hacks
   val pcRel = out Bool ()
   val branchType = out Bool ()
+
+  val memOp = out Bool ()
+  val memWriteEnable = out Bool ()
+  val memMask = out Bits (4 bits)
 
   val rs1 = out UInt (5 bits)
   val rs2 = out UInt (5 bits)
@@ -150,13 +172,22 @@ class Decoder extends Component {
   io.bType := False
   io.uType := False
 
+  io.memOp := False
+  io.memWriteEnable.assignDontCare()
+  io.memMask.assignDontCare()
+
+  io.imm.assignDontCare()
+  io.aluOp.assignDontCare()
+
   io.pcRel := False
   io.branchType := False
 
   switch(io.inst) {
     import Inst._
 
-    for ((inst, (format, aluOp, branchType)) <- Inst.instMap) {
+    // TODO: Use assignDontCare where possible
+
+    for ((inst, (format, aluOp, memOp, memMask, branchType)) <- Inst.instMap) {
       is(inst) {
         val (formatSignal, imm) = format match {
           case InstFormat.RType => (io.rType, B(0))
@@ -172,7 +203,20 @@ class Decoder extends Component {
           io.pcRel := True
         }
 
+        if (memOp == MemOp.Load) {
+          io.memOp := True
+          io.memWriteEnable := False
+          io.memMask := MemMask.getInt(memMask)
+        } else if (memOp == MemOp.Store) {
+          io.memOp := True
+          io.memWriteEnable := True
+          io.memMask := MemMask.getInt(memMask)
+        } else {
+          io.memOp := False
+        }
+
         io.branchType := Bool(BranchType.Jump == branchType)
+
         io.aluOp := aluOp
         io.imm := imm.asUInt.resize(32 bits)
         formatSignal := True
@@ -180,9 +224,7 @@ class Decoder extends Component {
     }
 
     default {
-      io.aluOp := AluOp.ADD
       io.error := True
-      io.imm := 0 // ?
     }
   }
 }

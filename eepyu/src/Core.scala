@@ -24,7 +24,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
   val fetchValid = Reg(Bool()) init False
 
   val DECODE = Payload(new DecoderIO())
-  val ALU_RESULT = Payload(UInt(32 bits))
+  val WRITE_BACK_VALUE = Payload(UInt(32 bits))
   val INST = Payload(Bits(32 bits))
   val PC = Payload(UInt(imemWidth bits))
 
@@ -103,11 +103,20 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     val alu = new Alu
     alu.io.op := DECODE.aluOp
     alu.io.en := True
-    ALU_RESULT := alu.io.dst
+    WRITE_BACK_VALUE.assignDontCare()
     execute.haltWhen(!alu.io.valid)
 
-    alu.io.src1 := 0
-    alu.io.src2 := 0
+    alu.io.src1.assignDontCare()
+    alu.io.src2.assignDontCare()
+
+    // io.mem.memAddr.assignDontCare()
+    // io.mem.memWriteData.assignDontCare()
+    io.mem.memAddr := 0
+    io.mem.memWriteData := 0
+
+    io.mem.memWriteEnable := isValid && DECODE.memWriteEnable
+    io.mem.memEnable := isValid && DECODE.memOp
+    io.mem.memMask := DECODE.memMask
 
     val flush = False
     for (stage <- List(genPc, fetch, decode)) {
@@ -117,22 +126,33 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     when(DECODE.rType) {
       alu.io.src1 := regFile.io.rs1Data
       alu.io.src2 := regFile.io.rs2Data
+      WRITE_BACK_VALUE := alu.io.dst
     }
 
     when(DECODE.iType) {
       alu.io.src1 := regFile.io.rs1Data
       alu.io.src2 := DECODE.imm
+      WRITE_BACK_VALUE := alu.io.dst // ignored for loads
 
-      // todo: mem
+      when(DECODE.memOp) {
+        io.mem.memAddr := alu.io.dst.resized
+      }
+
       when(isValid && DECODE.branchType) {
         pcArea.pc := alu.io.dst.resized
         flush := True
 
-        ALU_RESULT := (PC + 4).resized
+        WRITE_BACK_VALUE := (PC + 4).resized
       }
     }
 
-    when(DECODE.sType) {}
+    when(DECODE.sType) {
+      alu.io.src1 := regFile.io.rs1Data
+      alu.io.src2 := DECODE.imm
+
+      io.mem.memAddr := alu.io.dst.resized
+      io.mem.memWriteData := regFile.io.rs2Data
+    }
 
     when(DECODE.jType) {
       alu.io.src1 := regFile.io.rs1Data
@@ -144,8 +164,8 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
         flush := True
 
         // Link register
-        ALU_RESULT := (PC + 4).resized
-        // report(Seq("jumping to PC ", pc))
+        WRITE_BACK_VALUE := (PC + 4).resized
+        report(Seq("jumping to PC ", alu.io.dst.resized))
       }
     }
 
@@ -165,23 +185,22 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     when(DECODE.uType) {
       when(DECODE.pcRel) {
         // todo: use ALU ?
-        ALU_RESULT := (PC + DECODE.imm).resized
+        WRITE_BACK_VALUE := (PC + DECODE.imm).resized
       }.otherwise {
-        ALU_RESULT := DECODE.imm.resized
+        WRITE_BACK_VALUE := DECODE.imm.resized
       }
     }
-
-    io.mem.memWriteAddr := 0
-    io.mem.memWriteData := 0
-    io.mem.memWriteMask := B"1111"
-
-    io.mem.memReadAddr := 0
   }
 
   val writebackArea = new writeback.Area {
-    // TODO: can we do this during execute stage?
+    // TODO: use decoder bit
+    when(DECODE.memOp) {
+      regFile.io.rdData := io.mem.memReadData
+    }.otherwise {
+      regFile.io.rdData := WRITE_BACK_VALUE
+    }
+
     regFile.io.rd := DECODE.rd
-    regFile.io.rdData := ALU_RESULT
     regFile.io.writeValid := isValid && (DECODE.rType || DECODE.iType || DECODE.jType || DECODE.uType)
     io.error := RegNextWhen(True, isValid && DECODE.error) init False
 

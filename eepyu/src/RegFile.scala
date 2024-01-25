@@ -26,7 +26,7 @@ class RegFile extends Component {
   io.rs2Data := rs2mem.readSync(io.rs2)
 
   when(io.rd =/= 0 && io.writeValid) {
-    // report(Seq("Written register ", io.rd, " to value ", io.rdData))
+    report(Seq("Written register ", io.rd, " to value ", io.rdData))
     rs1mem.write(io.rd, io.rdData)
     rs2mem.write(io.rd, io.rdData)
   }

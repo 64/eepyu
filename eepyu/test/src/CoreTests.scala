@@ -12,18 +12,19 @@ import net.fornwall.jelf.ElfFile
 import java.io.File
 import net.fornwall.jelf.ElfSegment
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.Map
 import java.io.RandomAccessFile
+import net.fornwall.jelf.ElfSectionHeader
 
 class CoreTests extends AnyFunSuite {
   def assemble(inst: String) = BigInt(RISCVAssembler.binOutput(inst), 2)
 
   def withAssembledProgramMemory(dut: Core, imem: Seq[String]) = {
-    withProgramMemory(dut, imem.map(assemble))
+    withProgramMemory(dut, imem.map(assemble), Seq())
   }
 
-  def withProgramMemory(dut: Core, imem: Seq[BigInt]) = {
+  def withProgramMemory(dut: Core, imem: Seq[BigInt], dmemIn: Seq[BigInt]) = {
     dut.clockDomain.forkStimulus(2)
-    dut.io.mem.memReadData #= 0
 
     val imemThread = fork {
       while (true) {
@@ -32,6 +33,53 @@ class CoreTests extends AnyFunSuite {
         val addr = dut.io.mem.imemReadAddr.toInt / 4
         val data = imem.lift(addr).getOrElse(BigInt(0))
         dut.io.mem.imemReadData #= data
+      }
+    }
+
+    val dmemThread = fork {
+      val dmem = Map.empty[Int, Long]
+      for ((word, idx) <- dmemIn.zipWithIndex) {
+        dmem(idx * 4) = word.toLong
+      }
+
+      while (true) {
+        dut.clockDomain.waitSamplingWhere(dut.io.mem.memEnable.toBoolean)
+
+        var unalignedAddr = dut.io.mem.memAddr.toInt
+        unalignedAddr -= 0x1000 // hack
+        val alignedAddr = unalignedAddr & ~3
+        val misalignment = unalignedAddr - alignedAddr
+        val mask = dut.io.mem.memMask.toBytes(0) & 0xf
+
+        def expandMask(x: Int) = {
+          x match {
+            case 1 => 0xff
+            case 3 => 0xffff
+            case 7 => 0xffffffff
+          }
+        }
+
+        // TESTS ARE FAILING BECAUSE LB DOESN'T SIGN EXTEND !!!!!!!!!!!!!!!!
+
+        if (dut.io.mem.memWriteEnable.toBoolean) {
+          // hack: we initialise memory to zero if first write is sub-word
+          val existing: Long = dmem.lift(alignedAddr).getOrElse(0xccccccccL)
+          val toWrite = dut.io.mem.memWriteData.toLong << (8 * misalignment)
+          val writeMask = expandMask(mask)
+          val updated = (existing & ~writeMask) | (toWrite & writeMask)
+          println(f"Wrote address $unalignedAddr%x with mask $mask%d (before = $existing%x, new = $toWrite%x, after = $updated%x)")
+
+          dmem(alignedAddr) = updated
+        } else {
+          assert(dmem.contains(alignedAddr))
+
+          val word = dmem(alignedAddr)
+          val shifted = word >> (8 * misalignment)
+          val masked = shifted & expandMask(mask)
+          println(f"Read address $unalignedAddr%x with mask $mask%d (word = $word%x, shifted/masked = $masked%x)")
+
+          dut.io.mem.memReadData #= masked
+        }
       }
     }
 
@@ -51,7 +99,7 @@ class CoreTests extends AnyFunSuite {
     inst
   }
 
-  val compiled = Config.sim.compile(new Core(16, 8))
+  val compiled = Config.sim.compile(new Core(16, 16))
 
   test("should trap on illegal instruction") {
     compiled.doSim { dut =>
@@ -247,6 +295,7 @@ class CoreTests extends AnyFunSuite {
 
   def runRiscvTest(name: String) = {
     val imem = ArrayBuffer.empty[BigInt]
+    val dmem = ArrayBuffer.empty[BigInt]
 
     val file = new File("../../opt/riscv-tests/isa/" + name)
     val rafile = new RandomAccessFile(file, "r")
@@ -254,7 +303,7 @@ class CoreTests extends AnyFunSuite {
 
     for (i <- 0 until elf.e_phnum) {
       val segment = elf.getProgramHeader(i)
-      if ((segment.p_flags & ElfSegment.PT_LOAD) != 0) {
+      if ((segment.p_type & ElfSegment.PT_LOAD) != 0) {
         for (addr <- 0L until segment.p_filesz by 4) {
           rafile.seek(segment.p_offset + addr)
           val bytes = Seq(
@@ -264,14 +313,20 @@ class CoreTests extends AnyFunSuite {
             rafile.readUnsignedByte()
           )
           val word: BigInt = (BigInt(bytes(3)) << 24) | (BigInt(bytes(2)) << 16) | (BigInt(bytes(1)) << 8) | bytes(0)
-          imem += word
+
+          if ((segment.p_flags & 1) != 0) {
+            imem += word
+          } else if ((segment.p_flags & 2) != 0) {
+            println(f"Loaded word $word%x at dmem address $addr%x")
+            dmem += word
+          }
         }
       }
     }
 
     compiled.doSim { dut =>
       SimTimeout(5000)
-      withProgramMemory(dut, imem.toSeq)
+      withProgramMemory(dut, imem.toSeq, dmem.toSeq)
       dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean && dut.io.rvfi_halt.toBoolean)
       val gp = dut.regFile.rs1mem.getBigInt(3)
       assert(dut.io.rvfi_insn.toBigInt != 2, s": test number $gp failed")
@@ -294,17 +349,17 @@ class CoreTests extends AnyFunSuite {
     // "rv32ui-p-fence_i",
     "rv32ui-p-jal",
     "rv32ui-p-jalr",
-    // "rv32ui-p-lb",
-    // "rv32ui-p-lbu",
-    // "rv32ui-p-lh",
-    // "rv32ui-p-lhu",
+    "rv32ui-p-lb",
+    "rv32ui-p-lbu",
+    "rv32ui-p-lh",
+    "rv32ui-p-lhu",
     // "rv32ui-p-lui",
-    // "rv32ui-p-lw",
+    "rv32ui-p-lw",
     // "rv32ui-p-ma_data",
     "rv32ui-p-or",
     "rv32ui-p-ori",
-    // "rv32ui-p-sb",
-    // "rv32ui-p-sh",
+    "rv32ui-p-sb",
+    "rv32ui-p-sh",
     "rv32ui-p-simple",
     "rv32ui-p-sll",
     "rv32ui-p-slli",
@@ -317,9 +372,9 @@ class CoreTests extends AnyFunSuite {
     "rv32ui-p-srl",
     "rv32ui-p-srli",
     "rv32ui-p-sub",
-    // "rv32ui-p-sw",
+    "rv32ui-p-sw",
     "rv32ui-p-xor",
-    "rv32ui-p-xori",
+    "rv32ui-p-xori"
   )
 
   for (testName <- tests) {
