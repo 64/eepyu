@@ -6,6 +6,10 @@ object InstFormat extends Enumeration {
   val RType, IType, SType, JType, BType, UType = Value
 }
 
+object BranchType extends Enumeration {
+  val None, Jump = Value
+}
+
 object Inst {
   def ADD = M"0000000----------000-----0110011"
   def SUB = M"0100000----------000-----0110011"
@@ -49,43 +53,44 @@ object Inst {
   def AUIPC = M"-------------------------0010111"
 
   val instMap = Map(
-    ADD -> (InstFormat.RType, AluOp.ADD),
-    SUB -> (InstFormat.RType, AluOp.SUB),
-    SLL -> (InstFormat.RType, AluOp.SLL),
-    SLT -> (InstFormat.RType, AluOp.LT),
-    SLTU -> (InstFormat.RType, AluOp.LTU),
-    XOR -> (InstFormat.RType, AluOp.XOR),
-    SRL -> (InstFormat.RType, AluOp.SRL),
-    SRA -> (InstFormat.RType, AluOp.SRA),
-    OR -> (InstFormat.RType, AluOp.OR),
-    AND -> (InstFormat.RType, AluOp.AND),
-    ADDI -> (InstFormat.IType, AluOp.ADD),
-    SLLI -> (InstFormat.IType, AluOp.SLL),
-    SLTI -> (InstFormat.IType, AluOp.LT),
-    SLTIU -> (InstFormat.IType, AluOp.LTU),
-    XORI -> (InstFormat.IType, AluOp.XOR),
-    SRLI -> (InstFormat.IType, AluOp.SRL),
-    SRAI -> (InstFormat.IType, AluOp.SRA),
-    ORI -> (InstFormat.IType, AluOp.OR),
-    ANDI -> (InstFormat.IType, AluOp.AND),
-    LB -> (InstFormat.IType, AluOp.ADD),
-    LH -> (InstFormat.IType, AluOp.ADD),
-    LW -> (InstFormat.IType, AluOp.ADD),
-    LBU -> (InstFormat.IType, AluOp.ADD),
-    LHU -> (InstFormat.IType, AluOp.ADD),
-    JALR -> (InstFormat.IType, AluOp.ADD),
-    SB -> (InstFormat.SType, AluOp.ADD),
-    SH -> (InstFormat.SType, AluOp.ADD),
-    SW -> (InstFormat.SType, AluOp.ADD),
-    BEQ -> (InstFormat.BType, AluOp.EQ),
-    BNE -> (InstFormat.BType, AluOp.NE),
-    BLT -> (InstFormat.BType, AluOp.LT),
-    BGE -> (InstFormat.BType, AluOp.GE),
-    BLTU -> (InstFormat.BType, AluOp.LTU),
-    BGEU -> (InstFormat.BType, AluOp.GEU),
-    JAL -> (InstFormat.JType, AluOp.ADD),
-    LUI -> (InstFormat.UType, AluOp.ADD),
-    AUIPC -> (InstFormat.UType, AluOp.ADD)
+    // The branch types are a bit broken right now
+    ADD -> (InstFormat.RType, AluOp.ADD, BranchType.None),
+    SUB -> (InstFormat.RType, AluOp.SUB, BranchType.None),
+    SLL -> (InstFormat.RType, AluOp.SLL, BranchType.None),
+    SLT -> (InstFormat.RType, AluOp.LT, BranchType.None),
+    SLTU -> (InstFormat.RType, AluOp.LTU, BranchType.None),
+    XOR -> (InstFormat.RType, AluOp.XOR, BranchType.None),
+    SRL -> (InstFormat.RType, AluOp.SRL, BranchType.None),
+    SRA -> (InstFormat.RType, AluOp.SRA, BranchType.None),
+    OR -> (InstFormat.RType, AluOp.OR, BranchType.None),
+    AND -> (InstFormat.RType, AluOp.AND, BranchType.None),
+    ADDI -> (InstFormat.IType, AluOp.ADD, BranchType.None),
+    SLLI -> (InstFormat.IType, AluOp.SLL, BranchType.None),
+    SLTI -> (InstFormat.IType, AluOp.LT, BranchType.None),
+    SLTIU -> (InstFormat.IType, AluOp.LTU, BranchType.None),
+    XORI -> (InstFormat.IType, AluOp.XOR, BranchType.None),
+    SRLI -> (InstFormat.IType, AluOp.SRL, BranchType.None),
+    SRAI -> (InstFormat.IType, AluOp.SRA, BranchType.None),
+    ORI -> (InstFormat.IType, AluOp.OR, BranchType.None),
+    ANDI -> (InstFormat.IType, AluOp.AND, BranchType.None),
+    LB -> (InstFormat.IType, AluOp.ADD, BranchType.None),
+    LH -> (InstFormat.IType, AluOp.ADD, BranchType.None),
+    LW -> (InstFormat.IType, AluOp.ADD, BranchType.None),
+    LBU -> (InstFormat.IType, AluOp.ADD, BranchType.None),
+    LHU -> (InstFormat.IType, AluOp.ADD, BranchType.None),
+    JALR -> (InstFormat.IType, AluOp.ADD, BranchType.Jump),
+    SB -> (InstFormat.SType, AluOp.ADD, BranchType.None),
+    SH -> (InstFormat.SType, AluOp.ADD, BranchType.None),
+    SW -> (InstFormat.SType, AluOp.ADD, BranchType.None),
+    BEQ -> (InstFormat.BType, AluOp.EQ, BranchType.None),
+    BNE -> (InstFormat.BType, AluOp.NE, BranchType.None),
+    BLT -> (InstFormat.BType, AluOp.LT, BranchType.None),
+    BGE -> (InstFormat.BType, AluOp.GE, BranchType.None),
+    BLTU -> (InstFormat.BType, AluOp.LTU, BranchType.None),
+    BGEU -> (InstFormat.BType, AluOp.GEU, BranchType.None),
+    JAL -> (InstFormat.JType, AluOp.ADD, BranchType.None),
+    LUI -> (InstFormat.UType, AluOp.ADD, BranchType.None),
+    AUIPC -> (InstFormat.UType, AluOp.ADD, BranchType.None)
   )
 }
 
@@ -117,6 +122,7 @@ class DecoderIO extends Bundle {
   val bType = out Bool ()
   val uType = out Bool ()
   val pcRel = out Bool ()
+  val branchType = out Bool ()
 
   val rs1 = out UInt (5 bits)
   val rs2 = out UInt (5 bits)
@@ -143,12 +149,14 @@ class Decoder extends Component {
   io.jType := False
   io.bType := False
   io.uType := False
+
   io.pcRel := False
+  io.branchType := False
 
   switch(io.inst) {
     import Inst._
 
-    for ((inst, (format, aluOp)) <- Inst.instMap) {
+    for ((inst, (format, aluOp, branchType)) <- Inst.instMap) {
       is(inst) {
         val (formatSignal, imm) = format match {
           case InstFormat.RType => (io.rType, B(0))
@@ -164,6 +172,7 @@ class Decoder extends Component {
           io.pcRel := True
         }
 
+        io.branchType := Bool(BranchType.Jump == branchType)
         io.aluOp := aluOp
         io.imm := imm.asUInt.resize(32 bits)
         formatSignal := True

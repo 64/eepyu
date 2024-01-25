@@ -24,7 +24,7 @@ class DecoderTests extends AnyFunSuite {
     assert(decoder.io.aluOp.toEnum == aluOp)
   }
 
-  def checkIType(decoder: Decoder, inst: String, aluOp: AluOp.E, rd: Int, rs1: Int, imm: Int) = {
+  def checkIType(decoder: Decoder, inst: String, aluOp: AluOp.E, rd: Int, rs1: Int, imm: Int, branchType: BranchType.Value = BranchType.None) = {
     decoder.io.inst #= assemble(inst)
     sleep(1)
     assert(!decoder.io.error.toBoolean)
@@ -37,6 +37,7 @@ class DecoderTests extends AnyFunSuite {
     assert(decoder.io.rs1.toInt == rs1)
     assert(decoder.io.imm.toInt == imm)
     assert(decoder.io.aluOp.toEnum == aluOp)
+    assert(decoder.io.branchType.toBoolean == (branchType == BranchType.Jump))
   }
 
   def checkSType(decoder: Decoder, inst: String) = {

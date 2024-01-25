@@ -25,15 +25,15 @@ class Alu extends Component {
 
   io.valid := io.en
 
-  when(io.en && !shifting && isShift) {
-    // Begin shifting.
-    shiftAmount := io.src2(0 until 5)
-    shiftVal := io.src1
-    shifting := True
-
-    // We could optimise this to set valid if the output is set this cycle (shiftAmount == 0).
-    io.valid := False
-  }
+  // when(io.en && !shifting && isShift) {
+  //   // Begin shifting.
+  //   shiftAmount := io.src2(0 until 5)
+  //   shiftVal := io.src1
+  //   shifting := True
+  //
+  //   // We could optimise this to set valid if the output is set this cycle (shiftAmount == 0).
+  //   io.valid := False
+  // }
 
   when(shifting) {
     when(shiftAmount > 0) {
@@ -62,18 +62,18 @@ class Alu extends Component {
     AluOp.OR -> (io.src1 | io.src2),
     AluOp.XOR -> (io.src1 ^ io.src2),
     // Single cycle shifts, but big area usage
-    // AluOp.SLL -> (io.src1 |<< io.src2(0 until 5)),
-    // AluOp.SRL -> (io.src1 |>> io.src2(0 until 5)),
-    // AluOp.SRA -> (io.src1.asSInt |>> io.src2(0 until 5)).asUInt,
-    AluOp.SLL -> shiftVal,
-    AluOp.SRL -> shiftVal,
-    AluOp.SRA -> shiftVal,
+    AluOp.SLL -> (io.src1 |<< io.src2(0 until 5)),
+    AluOp.SRL -> (io.src1 |>> io.src2(0 until 5)),
+    AluOp.SRA -> (io.src1.asSInt |>> io.src2(0 until 5)).asUInt,
+    // AluOp.SLL -> shiftVal,
+    // AluOp.SRL -> shiftVal,
+    // AluOp.SRA -> shiftVal,
     AluOp.EQ -> (io.src1 === io.src2).asUInt.resized,
     AluOp.NE -> (io.src1 =/= io.src2).asUInt.resized,
     AluOp.LT -> (io.src1.asSInt < io.src2.asSInt).asUInt.resized,
-    AluOp.GE -> (io.src1.asSInt < io.src2.asSInt).asUInt.resized,
+    AluOp.GE -> (io.src1.asSInt >= io.src2.asSInt).asUInt.resized,
     AluOp.LTU -> (io.src1 < io.src2).asUInt.resized,
-    AluOp.GEU -> (io.src1 < io.src2).asUInt.resized
+    AluOp.GEU -> (io.src1 >= io.src2).asUInt.resized
   )
 }
 

@@ -23,10 +23,11 @@ class CoreTests extends AnyFunSuite {
 
   def withProgramMemory(dut: Core, imem: Seq[BigInt]) = {
     dut.clockDomain.forkStimulus(2)
-    dut.io.mem.memReadAddr #= 0
+    dut.io.mem.memReadData #= 0
 
     val imemThread = fork {
       while (true) {
+        // Sync mem
         dut.clockDomain.waitSampling(1)
         val addr = dut.io.mem.imemReadAddr.toInt / 4
         val data = imem.lift(addr).getOrElse(BigInt(0))

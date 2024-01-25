@@ -13,6 +13,7 @@ class CoreIO(imemWidth: Int, memWidth: Int) extends Bundle {
   val rvfi_valid = out Bool ()
   val rvfi_insn = out UInt (32 bits)
   val rvfi_order = out UInt (64 bits)
+  val rvfi_pc = out UInt (imemWidth bits)
   val rvfi_halt = out Bool ()
 }
 
@@ -20,7 +21,6 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
   val io = new CoreIO(imemWidth, memWidth)
 
   val regFile = new RegFile
-  val pc = Reg(UInt(imemWidth bits)) init 0
   val fetchValid = Reg(Bool()) init False
 
   val DECODE = Payload(new DecoderIO())
@@ -28,8 +28,10 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
   val INST = Payload(Bits(32 bits))
   val PC = Payload(UInt(imemWidth bits))
 
-  val pcStage, fetch, decode, execute, writeback = CtrlLink()
-  val pc2f = StageLink(pcStage.down, fetch.up)
+  val genPc = CtrlLink()
+
+  val fetch, decode, execute, writeback = CtrlLink()
+  val pc2f = StageLink(genPc.down, fetch.up)
   val f2d = StageLink(fetch.down, decode.up)
   val d2e = StageLink(decode.down, execute.up)
   val e2w = StageLink(execute.down, writeback.up)
@@ -51,27 +53,28 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
   // // val se2w = S2MLink(e2w.down, Node())
   // val ce2w = CtrlLink(e2w.down, writeback)
 
-  val pcArea = new pcStage.Area {
-    up.valid := True
+  val pcArea = new genPc.Area {
+    val pc = Reg(UInt(imemWidth bits)) init 0
 
     when(isValid && isReady) {
       pc := pc + 4
     }
 
+    up.valid := True
     PC := pc
-
-    // Hack. The problem is that the PC stage doesn't hold the imemReadAddr when the fetch / decode stage has stalled.
-    // io.mem.imemReadAddr := isReady ? pc | RegNextWhen(pc, isReady)
-    io.mem.imemReadAddr := pc
   }
 
   val fetchArea = new fetch.Area {
-    INST := io.mem.imemReadData.asBits
+    val oldPc = RegNextWhen(up(PC), isValid && isReady) init 0
+    val newPc = up(PC)
+
+    // Hack. The problem is that the PC stage doesn't hold the imemReadAddr when the fetch / decode stage has stalled.
+    io.mem.imemReadAddr := (isValid && isReady) ? newPc | oldPc
   }
 
   val decodeArea = new decode.Area {
     val decoder = new Decoder
-    decoder.io.inst := INST
+    decoder.io.inst := io.mem.imemReadData.asBits
     DECODE := decoder.io
 
     regFile.io.rs1 := decoder.io.rs1
@@ -107,8 +110,8 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     alu.io.src2 := 0
 
     val flush = False
-    for (stage <- List(pcStage, fetch, decode)) {
-      stage.throwWhen(flush, usingReady = true)
+    for (stage <- List(genPc, fetch, decode)) {
+      stage.throwWhen(flush, usingReady = (stage == genPc))
     }
 
     when(DECODE.rType) {
@@ -121,6 +124,12 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
       alu.io.src2 := DECODE.imm
 
       // todo: mem
+      when(isValid && DECODE.branchType) {
+        pcArea.pc := alu.io.dst.resized
+        flush := True
+
+        ALU_RESULT := (PC + 4).resized
+      }
     }
 
     when(DECODE.sType) {}
@@ -131,12 +140,12 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
 
       when(isValid) {
         // Set PC to branch target and flush pipe
-        pc := alu.io.dst.resized
+        pcArea.pc := alu.io.dst.resized
         flush := True
 
         // Link register
         ALU_RESULT := (PC + 4).resized
-        report(Seq("jumping to PC ", pc))
+        // report(Seq("jumping to PC ", pc))
       }
     }
 
@@ -146,9 +155,10 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
 
       when(isValid && alu.io.dst(0)) {
         // hack
-        pc := (PC + DECODE.imm).resized
+        val newPc = (PC + DECODE.imm).resized
+        pcArea.pc := newPc
         flush := True
-        report(Seq("branching to PC ", pc))
+        report(Seq("branching to PC ", newPc))
       }
     }
 
@@ -185,9 +195,10 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     io.rvfi_insn := DECODE.inst.asUInt
     io.rvfi_order := order
     io.rvfi_halt := DECODE.error
+    io.rvfi_pc := PC
   }
 
-  Builder(pcStage, pc2f, fetch, f2d, decode, d2e, execute, e2w, writeback)
+  Builder(genPc, pc2f, fetch, f2d, decode, d2e, execute, e2w, writeback)
 }
 
 object CoreVerilog extends App {
