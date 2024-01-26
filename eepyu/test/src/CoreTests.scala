@@ -49,15 +49,28 @@ class CoreTests extends AnyFunSuite {
         unalignedAddr -= 0x1000 // hack
         val alignedAddr = unalignedAddr & ~3
         val misalignment = unalignedAddr - alignedAddr
-        val mask = dut.io.mem.memMask.toBytes(0) & 0xf
 
-        def expandMask(x: Int) = {
-          x match {
-            case 1 => 0xff
-            case 3 => 0xffff
-            case 7 => 0xffffffff
+        def expandMask(memType: MemType.E) = {
+          memType match {
+            case MemType.Byte | MemType.ByteU         => 0xff
+            case MemType.HalfWord | MemType.HalfWordU => 0xffff
+            case MemType.Word                         => 0xffffffff
           }
         }
+        def doSext(x: Long, memType: MemType.E) = {
+          val ext = memType match {
+            case MemType.Byte     => x.toByte.toInt
+            case MemType.HalfWord => x.toShort.toInt
+            case default          => x
+          }
+
+          if (ext < 0) {
+            0xffffffffL + ext + 1
+          } else {
+            ext
+          }
+        }
+        val mask = expandMask(dut.io.mem.memType.toEnum)
 
         // TESTS ARE FAILING BECAUSE LB DOESN'T SIGN EXTEND !!!!!!!!!!!!!!!!
 
@@ -65,9 +78,11 @@ class CoreTests extends AnyFunSuite {
           // hack: we initialise memory to zero if first write is sub-word
           val existing: Long = dmem.lift(alignedAddr).getOrElse(0xccccccccL)
           val toWrite = dut.io.mem.memWriteData.toLong << (8 * misalignment)
-          val writeMask = expandMask(mask)
-          val updated = (existing & ~writeMask) | (toWrite & writeMask)
-          println(f"Wrote address $unalignedAddr%x with mask $mask%d (before = $existing%x, new = $toWrite%x, after = $updated%x)")
+          val shiftedMask = mask << (8 * misalignment)
+          val updated = (existing & ~shiftedMask) | (toWrite & shiftedMask)
+          // println(
+          //   f"Wrote address $unalignedAddr%x with mask $mask%x (before = $existing%x, new = $toWrite%x, after = $updated%x)"
+          // )
 
           dmem(alignedAddr) = updated
         } else {
@@ -75,10 +90,11 @@ class CoreTests extends AnyFunSuite {
 
           val word = dmem(alignedAddr)
           val shifted = word >> (8 * misalignment)
-          val masked = shifted & expandMask(mask)
-          println(f"Read address $unalignedAddr%x with mask $mask%d (word = $word%x, shifted/masked = $masked%x)")
+          val masked = shifted & mask
+          val sext = doSext(masked, dut.io.mem.memType.toEnum)
+          // println(f"Read address $unalignedAddr%x with mask $mask%x (word = $word%x, shifted/masked = $masked%x, sext = $sext%x)")
 
-          dut.io.mem.memReadData #= masked
+          dut.io.mem.memReadData #= sext
         }
       }
     }
@@ -87,7 +103,7 @@ class CoreTests extends AnyFunSuite {
       while (true) {
         dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean)
         val inst = dut.io.rvfi_insn.toBigInt
-        println(f"Retired instruction $inst%x")
+        // println(f"Retired instruction $inst%x")
       }
     }
   }
@@ -317,7 +333,7 @@ class CoreTests extends AnyFunSuite {
           if ((segment.p_flags & 1) != 0) {
             imem += word
           } else if ((segment.p_flags & 2) != 0) {
-            println(f"Loaded word $word%x at dmem address $addr%x")
+            // println(f"Loaded word $word%x at dmem address $addr%x")
             dmem += word
           }
         }
@@ -346,16 +362,16 @@ class CoreTests extends AnyFunSuite {
     "rv32ui-p-blt",
     "rv32ui-p-bltu",
     "rv32ui-p-bne",
-    // "rv32ui-p-fence_i",
+    // "rv32ui-p-fence_i", // Self-modifying code is not supported.
     "rv32ui-p-jal",
     "rv32ui-p-jalr",
     "rv32ui-p-lb",
     "rv32ui-p-lbu",
     "rv32ui-p-lh",
     "rv32ui-p-lhu",
-    // "rv32ui-p-lui",
+    "rv32ui-p-lui",
     "rv32ui-p-lw",
-    // "rv32ui-p-ma_data",
+    // "rv32ui-p-ma_data", // Misaligned loads and stores are not supported.
     "rv32ui-p-or",
     "rv32ui-p-ori",
     "rv32ui-p-sb",

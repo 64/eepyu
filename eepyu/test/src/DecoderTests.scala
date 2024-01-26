@@ -33,7 +33,7 @@ class DecoderTests extends AnyFunSuite {
       rs1: Int,
       imm: Int,
       memRead: Boolean = false,
-      memMask: Option[Int] = None,
+      memMask: Option[MemType.E] = None,
       branchType: BranchType.Value = BranchType.None
   ) = {
     decoder.io.inst #= assemble(inst)
@@ -52,11 +52,11 @@ class DecoderTests extends AnyFunSuite {
     assert(decoder.io.memOp.toBoolean == memRead)
     assert(!decoder.io.memWriteEnable.toBoolean)
     if (memMask.isDefined) {
-      assert(decoder.io.memMask.toInt == memMask.get)
+      assert(decoder.io.memMask.toEnum == memMask.get)
     }
   }
 
-  def checkSType(decoder: Decoder, inst: String, rs1: Int, rs2: Int, imm: Int, memMask: Int) = {
+  def checkSType(decoder: Decoder, inst: String, rs1: Int, rs2: Int, imm: Int, memMask: MemType.E) = {
     decoder.io.inst #= assemble(inst)
     sleep(1)
     assert(!decoder.io.error.toBoolean)
@@ -71,7 +71,7 @@ class DecoderTests extends AnyFunSuite {
     assert(decoder.io.aluOp.toEnum == AluOp.ADD)
     assert(decoder.io.memOp.toBoolean)
     assert(decoder.io.memWriteEnable.toBoolean)
-    assert(decoder.io.memMask.toInt == memMask)
+    assert(decoder.io.memMask.toEnum == memMask)
   }
 
   def checkJType(decoder: Decoder, inst: String, rd: Int, imm: Int) = {
@@ -233,31 +233,31 @@ class DecoderTests extends AnyFunSuite {
 
   test("Decode LB") {
     compiled.doSim { dut =>
-      checkIType(dut, "lb x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(1))
+      checkIType(dut, "lb x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(MemType.Byte))
     }
   }
 
   test("Decode LH") {
     compiled.doSim { dut =>
-      checkIType(dut, "lh x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(3))
+      checkIType(dut, "lh x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(MemType.HalfWord))
     }
   }
 
   test("Decode LW") {
     compiled.doSim { dut =>
-      checkIType(dut, "lw x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(7))
+      checkIType(dut, "lw x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(MemType.Word))
     }
   }
 
   test("Decode LBU") {
     compiled.doSim { dut =>
-      checkIType(dut, "lbu x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(1))
+      checkIType(dut, "lbu x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(MemType.ByteU))
     }
   }
 
   test("Decode LHU") {
     compiled.doSim { dut =>
-      checkIType(dut, "lhu x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(3))
+      checkIType(dut, "lhu x0, 2(x1)", AluOp.ADD, 0, 1, 2, memRead = true, memMask = Some(MemType.HalfWordU))
     }
   }
 
@@ -296,14 +296,14 @@ class DecoderTests extends AnyFunSuite {
   }
 
   test("Decode SB") {
-    compiled.doSim { dut => checkSType(dut, "sb x0, 2(x1)", 1, 0, 2, 1) }
+    compiled.doSim { dut => checkSType(dut, "sb x0, 2(x1)", 1, 0, 2, MemType.Byte) }
   }
 
   test("Decode SH") {
-    compiled.doSim { dut => checkSType(dut, "sh x0, 2(x1)", 1, 0, 2, 3) }
+    compiled.doSim { dut => checkSType(dut, "sh x0, 2(x1)", 1, 0, 2, MemType.HalfWord) }
   }
 
   test("Decode SW") {
-    compiled.doSim { dut => checkSType(dut, "sw x0, 2(x1)", 1, 0, 2, 7) }
+    compiled.doSim { dut => checkSType(dut, "sw x0, 2(x1)", 1, 0, 2, MemType.Word) }
   }
 }

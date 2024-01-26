@@ -8,7 +8,7 @@ class MemoryPort(imemWidth: Int, memWidth: Int) extends Bundle with IMasterSlave
   val imemReadData = UInt(32 bits)
 
   val memAddr = UInt(memWidth bits)
-  val memMask = Bits(4 bits)
+  val memType = MemType()
   val memEnable = Bool()
 
   val memReadData = UInt(32 bits)
@@ -17,7 +17,7 @@ class MemoryPort(imemWidth: Int, memWidth: Int) extends Bundle with IMasterSlave
 
   override def asMaster(): Unit = {
     in(imemReadData, memReadData)
-    out(imemReadAddr, memAddr, memMask, memWriteData, memWriteEnable, memEnable)
+    out(imemReadAddr, memAddr, memType, memWriteData, memWriteEnable, memEnable)
   }
 }
 
@@ -29,14 +29,40 @@ class Memory(imemWidth: Int, memWidth: Int, initialInstructionMemory: Seq[UInt] 
   val imem = new Mem(UInt(32 bits), 1 << imemWidth >> 2) init (padded)
   val mem = new Mem(UInt(32 bits), 1 << memWidth >> 2)
 
+  val mask = io.memType.mux(
+    MemType.Byte -> B"0001",
+    MemType.ByteU -> B"0001",
+    MemType.HalfWord -> B"0011",
+    MemType.HalfWordU -> B"0011",
+    MemType.Word -> B"1111"
+  )
+  val maskShifted = mask |<< io.memAddr(2 downto 0) // ignore misaligned accesses. TODO: try shift in decoder
+
+  val sext = io.memType.mux(
+    MemType.Byte -> True,
+    MemType.ByteU -> False,
+    MemType.HalfWord -> True,
+    MemType.HalfWordU -> False,
+    MemType.Word -> False
+  )
+
   io.imemReadData := imem.readSync(io.imemReadAddr >> 2)
-  io.memReadData := mem.readWriteSync(
+
+  val readData = mem.readWriteSync(
     address = io.memAddr >> 2,
     data = io.memWriteData, // TODO: WRONG !!!! needs to be shifted
     enable = io.memEnable,
     write = io.memWriteEnable,
-    mask = io.memMask |<< io.memAddr(2 downto 0) // ignore misaligned. todo: shift in decoder
+    mask = maskShifted
   )
+
+  when(sext && !mask(1)) {
+    readData := U(readData(7).asSInt.resize(24) ## readData(7 downto 0))
+  }.elsewhen(sext && !mask(2)) {
+    readData := U(readData(15).asSInt.resize(16) ## readData(7 downto 0))
+  }
+
+  io.memReadData := readData
 }
 
 object MemoryVerilog extends App {

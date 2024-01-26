@@ -30,6 +30,8 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
 
   val genPc = CtrlLink()
 
+  val flush = False
+
   val fetch, decode, execute, writeback = CtrlLink()
   val pc2f = StageLink(genPc.down, fetch.up)
   val f2d = StageLink(fetch.down, decode.up)
@@ -93,7 +95,8 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     val rawHazardInWriteback = hazardInStage(writeback)
     val anyHazard = rawHazardInExecute || rawHazardInWriteback
 
-    when(anyHazard) {
+    // The Spinal Pipeline API seems to get confused if we haltIt() on the same cycle that a flush is happening (because we simultaneously throw and halt).
+    when(anyHazard && !flush) {
       // report(Seq("e hazard: ", rawHazardInExecute, ", w hazard: ", rawHazardInWriteback))
       haltIt()
     }
@@ -116,11 +119,12 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
 
     io.mem.memWriteEnable := isValid && DECODE.memWriteEnable
     io.mem.memEnable := isValid && DECODE.memOp
-    io.mem.memMask := DECODE.memMask
+    io.mem.memType := DECODE.memMask
 
-    val flush = False
     for (stage <- List(genPc, fetch, decode)) {
+      // TODO: Which of these is better for LUT usage?
       stage.throwWhen(flush, usingReady = (stage == genPc))
+      // stage.throwWhen(flush, usingReady = true)
     }
 
     when(DECODE.rType) {
@@ -178,7 +182,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
         val newPc = (PC + DECODE.imm).resized
         pcArea.pc := newPc
         flush := True
-        report(Seq("branching to PC ", newPc))
+        // report(Seq("branching to PC ", newPc))
       }
     }
 
