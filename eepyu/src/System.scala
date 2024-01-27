@@ -14,50 +14,50 @@ class SystemIO extends Bundle {
 case class System() extends Component {
   val io = new SystemIO
 
-  val uartCtrl = UartCtrl(config =
-    UartCtrlInitConfig(
-      baudrate = 115200,
-      dataLength = 7, // 8 bits
-      parity = UartParityType.NONE,
-      stop = UartStopType.ONE
+  io.uart.txd := False
+
+  // val uartCtrl = UartCtrl(config =
+  //   UartCtrlInitConfig(
+  //     baudrate = 115200,
+  //     dataLength = 7, // 8 bits
+  //     parity = UartParityType.NONE,
+  //     stop = UartStopType.ONE
+  //   )
+  // )
+  // uartCtrl.io.uart <> io.uart
+
+  val core = new Core()
+  val mem = new Memory(
+    core.imemWidth,
+    core.memWidth,
+    Seq(
+      // Blinky
+      // addi x1, x0, 0
+      // addi x2, x0, 1
+      // slli x2, x2, 20
+      //
+      // loop:
+      // addi x1, x1, 1
+      // and x3, x1, x2
+      // sltiu x3, x3, 1
+      // sw x3, 4(x0)
+      // jal x0, loop
+      0x00000093L, 0x00100113L, 0x01411113L, 0x00108093L, 0x0020f1b3L, 0x0011b193L, 0x00302223L, 0xff1ff06fL
     )
   )
-  uartCtrl.io.uart <> io.uart
 
   io.redLeds(0) := False
   io.redLeds(1) := False
   io.redLeds(2) := False
-  // io.redLeds(3) := False
-  // io.greenLed := False
+  // io.redLeds(3) := core.io.error
 
-  // val aluUart = new util.AluUart
-  // aluUart.io.data << uartCtrl.io.read.asFlow.as(Flow(UInt(8 bits)))
-  // io.redLeds(3) := aluUart.io.led
-
-  // val decoder = new Decoder
-  // decoder.io.inst := 0
-  //
-  // val shift = Reg(UInt(32 bits))
-  // val count = Counter(4)
-  // when (uartCtrl.io.read.fire) {
-  //   shift := (shift |<< 8) | uartCtrl.io.read.payload.asUInt.resized
-  //   count.increment()
-  // }
-  //
-  // when(count === 0) {
-  //   decoder.io.inst := shift
-  //
-  //   io.redLeds(0) := decoder.io.rType
-  //   io.redLeds(1) := decoder.io.iType
-  //   io.redLeds(2) := decoder.io.sType
-  //   io.redLeds(3) := decoder.io.jType
-  //   io.greenLed := decoder.io.bType
-  // }
-
-  val core = new Core()
-  val mem = new Memory(core.imemWidth, core.memWidth, Seq(19, 4292866159L))
   mem.io <> core.io.mem
-  io.redLeds(3) := core.io.error
+
+  def whenWriteAddr(x: Int) = {
+    core.io.mem.memAddr === x && core.io.mem.memEnable && core.io.mem.memWriteEnable
+  }
+  // io.redLeds(2) := RegNextWhen(core.io.mem.memWriteData(0), whenWriteAddr(0)) init False
+  io.redLeds(3) := RegNextWhen(core.io.mem.memWriteData(0), whenWriteAddr(4)) init False
 
   GenerationFlags.synthesis {
     io.greenLed := True
@@ -66,7 +66,7 @@ case class System() extends Component {
     io.greenLed := False
   }
 
-  uartCtrl.io.write <> uartCtrl.io.read
+  // uartCtrl.io.write <> uartCtrl.io.read
 }
 
 object SystemVerilog extends App {

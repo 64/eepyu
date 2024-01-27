@@ -10,7 +10,8 @@ from functools import partial
 
 DOIT_CONFIG = {"default_tasks": ["elaborate:Top"], "backend": "sqlite3"}
 
-PNR_ARGS = "--pcf icestick.pcf --freq 60 --hx1k --package tq144"
+# PNR_ARGS = "--pcf icestick.pcf --freq 60 --hx1k --package tq144"
+PNR_ARGS = "--pcf icestick.pcf --freq 12 --hx1k --package tq144"
 
 TOP_BLOCKS = [
     "Alu",
@@ -30,6 +31,9 @@ def get_scala_sources():
 
 def get_scala_test_sources():
     return glob.glob("./eepyu/**/*.scala", recursive=True)
+
+def get_bin_sources(block):
+    return glob.glob(f"./simWorkspace/{block}/{block}.**.bin")
 
 
 def get_mill_cmd(cmd, verilator=False):
@@ -140,7 +144,7 @@ def task_synthesize():
                 'yosys -p "synth_ice40 -top Top -json out/Top.json" out/Top.v out/BlackboxRTL.v'
             )
         ],
-        "file_dep": ["out/Top.v", "out/BlackboxRTL.v"],
+        "file_dep": ["out/Top.v", "out/BlackboxRTL.v"] + get_bin_sources("Top"),
         "targets": ["out/Top.json"],
     }
 
@@ -167,6 +171,7 @@ def task_gui():
             )
         ],
         "file_dep": ["out/Top.json"],
+        "uptodate": [False],
     }
 
 

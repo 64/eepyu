@@ -17,7 +17,7 @@ class CoreIO(imemWidth: Int, memWidth: Int) extends Bundle {
   val rvfi_halt = out Bool ()
 }
 
-class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
+class Core(val imemWidth: Int = 6, val memWidth: Int = 4) extends Component {
   val io = new CoreIO(imemWidth, memWidth)
 
   val regFile = new RegFile
@@ -105,7 +105,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
   val executeArea = new execute.Area {
     val alu = new Alu
     alu.io.op := DECODE.aluOp
-    alu.io.en := True
+    alu.io.en := isValid && (RegNextWhen(alu.io.valid, isValid) init True)
     WRITE_BACK_VALUE.assignDontCare()
     execute.haltWhen(!alu.io.valid)
 
@@ -117,8 +117,9 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
     io.mem.memAddr := 0
     io.mem.memWriteData := 0
 
+    // TODO: more robust error logic?
     io.mem.memWriteEnable := isValid && DECODE.memWriteEnable
-    io.mem.memEnable := isValid && DECODE.memOp
+    io.mem.memEnable := isValid && DECODE.memOp && !DECODE.error && !io.error
     io.mem.memType := DECODE.memMask
 
     for (stage <- List(genPc, fetch, decode)) {
@@ -169,7 +170,7 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
 
         // Link register
         WRITE_BACK_VALUE := (PC + 4).resized
-        report(Seq("jumping to PC ", alu.io.dst.resized))
+        // report(Seq("jumping to PC ", alu.io.dst.resized))
       }
     }
 
@@ -204,9 +205,12 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
       regFile.io.rdData := WRITE_BACK_VALUE
     }
 
+    val writebackValid = isValid && !DECODE.error && !io.error
+    val writebackErrorThisCycle = isValid && DECODE.error
+
     regFile.io.rd := DECODE.rd
-    regFile.io.writeValid := isValid && (DECODE.rType || DECODE.iType || DECODE.jType || DECODE.uType)
-    io.error := RegNextWhen(True, isValid && DECODE.error) init False
+    regFile.io.writeValid := writebackValid && (DECODE.rType || DECODE.iType || DECODE.jType || DECODE.uType)
+    io.error := RegNextWhen(True, writebackErrorThisCycle) init False
 
     val order = Counter(64 bits)
 
@@ -214,10 +218,10 @@ class Core(val imemWidth: Int = 4, val memWidth: Int = 8) extends Component {
       order.increment()
     }
 
-    io.rvfi_valid := isValid
+    io.rvfi_valid := isValid && !io.error
     io.rvfi_insn := DECODE.inst.asUInt
     io.rvfi_order := order
-    io.rvfi_halt := DECODE.error
+    io.rvfi_halt := io.error || writebackErrorThisCycle
     io.rvfi_pc := PC
   }
 

@@ -57,12 +57,19 @@ class Memory(imemWidth: Int, memWidth: Int, initialInstructionMemory: Seq[UInt] 
   )
 
   when(sext && !mask(1)) {
-    readData := U(readData(7).asSInt.resize(24) ## readData(7 downto 0))
+    // readDataExt := U(readData(7).asSInt.resize(24) ## readData(7 downto 0))
+    io.memReadData := (
+      (31 downto 7) -> readData(7),
+      (7 downto 0) -> readData(7 downto 0)
+    )
   }.elsewhen(sext && !mask(2)) {
-    readData := U(readData(15).asSInt.resize(16) ## readData(7 downto 0))
+    io.memReadData := (
+      (31 downto 15) -> readData(15),
+      (15 downto 0) -> readData(15 downto 0)
+    )
+  }.otherwise {
+    io.memReadData := readData
   }
-
-  io.memReadData := readData
 }
 
 object MemoryVerilog extends App {

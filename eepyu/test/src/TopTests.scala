@@ -9,6 +9,65 @@ import scala.collection.mutable
 import scala.util.Random
 
 class TopTests extends AnyFunSuite {
+  def uartTxByte(dut: Top, buffer: Int) = {
+    val txd = dut.io.uart.rxd
+    val rxd = dut.io.uart.txd
+    val baudRate = 115200
+    val baudPeriod = (dut.clockDomain.frequency.getValue.toDouble / baudRate.toDouble).toInt
+
+    txd #= false
+    dut.clockDomain.waitSampling(baudPeriod)
+
+    for (i <- 0 to 7) {
+      txd #= ((buffer >> i) & 1) != 0
+      dut.clockDomain.waitSampling(baudPeriod)
+    }
+
+    txd #= true
+    dut.clockDomain.waitSampling(baudPeriod)
+  }
+
+  test("Core should toggle LED") {
+    Config.sim.compile(ClockedTop()).doSim { dut =>
+      SimTimeout(10000)
+      dut.clockDomain.forkStimulus(2)
+      for (i <- 0 to 5) {
+        dut.clockDomain.waitSamplingWhere(dut.io.redLeds(3).toBoolean)
+        dut.clockDomain.waitSamplingWhere(!dut.io.redLeds(3).toBoolean)
+      }
+    }
+  }
+
+  // test("Core should error") {
+  //   Config.sim.compile(ClockedTop()).doSim { dut =>
+  //     SimTimeout(1000)
+  //     dut.clockDomain.forkStimulus(2)
+  //     dut.clockDomain.waitSamplingWhere(dut.io.redLeds(3).toBoolean)
+  //   }
+  // }
+
+  // test("Core should not error") {
+  //   Config.sim.compile(ClockedTop()).doSim { dut =>
+  //     dut.clockDomain.forkStimulus(2)
+  //     for (i <- 0 until 3000) {
+  //       assert(!dut.io.redLeds(3).toBoolean)
+  //       dut.clockDomain.waitSampling()
+  //     }
+  //   }
+  // }
+
+  // test("Core should error on UART TX") {
+  //   Config.sim.compile(ClockedTop()).doSim { dut =>
+  //     SimTimeout(10000)
+  //     dut.clockDomain.forkStimulus(2)
+  //     uartTxByte(dut, 1)
+  //     uartTxByte(dut, 2)
+  //     uartTxByte(dut, 3)
+  //
+  //     dut.clockDomain.waitSamplingWhere(dut.io.redLeds(3).toBoolean)
+  //   }
+  // }
+
   // test("UART TX/RX") {
   //   Config.sim.compile(ClockedTop()).doSim { dut =>
   //     val clock = dut.clockDomain

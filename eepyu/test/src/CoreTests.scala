@@ -103,7 +103,7 @@ class CoreTests extends AnyFunSuite {
       while (true) {
         dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean)
         val inst = dut.io.rvfi_insn.toBigInt
-        // println(f"Retired instruction $inst%x")
+        println(f"Retired instruction $inst%x")
       }
     }
   }
@@ -171,16 +171,7 @@ class CoreTests extends AnyFunSuite {
       )
     compiled.doSim { dut =>
       withAssembledProgramMemory(dut, program)
-
-      for (i <- 0 until 6) {
-        assert(dut.regFile.rs1mem.getBigInt(1) == 0)
-        dut.clockDomain.waitSampling(1)
-      }
-
-      for (i <- 0 until 5) {
-        assert(dut.regFile.rs1mem.getBigInt(1) == 1)
-        dut.clockDomain.waitSampling(1)
-      }
+      dut.clockDomain.waitSamplingWhere(15)(dut.regFile.rs1mem.getBigInt(1) == 1)
     }
   }
 
