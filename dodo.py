@@ -15,7 +15,6 @@ PNR_ARGS = "--pcf icestick.pcf --freq 12 --hx1k --package tq144"
 
 TOP_BLOCKS = [
     "Alu",
-    "AluUart",
     "Core",
     "Decoder",
     "Memory",

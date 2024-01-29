@@ -9,7 +9,8 @@ import scala.util.Random
 class AluTests extends AnyFunSuite {
   val u32Max = (1L << 32) - 1
 
-  // Scala and Java do not support unsigned arithmetic, so we have to hack it with Long... this is quite fiddily, so I've included some assertions to check we've done it right.
+  // Scala does not support unsigned arithmetic, so we have to hack it with Long... this is quite fiddily, so I've included some assertions to check we've done it right.
+  // There is probably a much better way to do all of this!
   def wrapLongAsU32(x: Long): Long = if (x.toInt.toLong < 0) {
     u32Max + x.toInt.toLong + 1
   } else {
@@ -188,7 +189,9 @@ class AluTests extends AnyFunSuite {
     compiled.doSim { dut =>
       dut.clockDomain.forkStimulus(10)
       checkAluOpRange(dut, AluOp.LT, -20 until 20)
-      // checkRandom(dut, AluOp.LT)
+    // checkRandom(dut, AluOp.LT)
     }
   }
+
+  // TODO: SLTU
 }
