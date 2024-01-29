@@ -32,6 +32,7 @@ def get_scala_sources():
 def get_scala_test_sources():
     return glob.glob("./eepyu/**/*.scala", recursive=True)
 
+
 def get_bin_sources(block):
     return glob.glob(f"./simWorkspace/{block}/{block}.**.bin")
 
@@ -147,6 +148,22 @@ def task_synthesize():
         "file_dep": ["out/Top.v", "out/BlackboxRTL.v"] + get_bin_sources("Top"),
         "targets": ["out/Top.json"],
     }
+
+
+def task_show():
+    for top in TOP_BLOCKS:
+        yield {
+            "name": top,
+            "actions": [
+                with_oss_cad_suite(
+                    f'yosys -p "read_verilog out/Top.v out/BlackboxRTL.v; opt; show {top}"'
+                )
+            ],
+            "file_dep": ["out/Top.v", "out/BlackboxRTL.v"],
+            "uptodate": [False],
+        }
+
+    yield {"name": None, "task_dep": ["elaborate:Core"]}
 
 
 def task_pnr():
