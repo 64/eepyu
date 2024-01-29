@@ -27,6 +27,18 @@ class TopTests extends AnyFunSuite {
     dut.clockDomain.waitSampling(baudPeriod)
   }
 
+  // test("Core should toggle LED when RX byte 0") {
+  //   Config.sim.compile(ClockedTop()).doSim { dut =>
+  //     SimTimeout(10000)
+  //     dut.clockDomain.forkStimulus(2)
+  //     uartTxByte(dut, '1')
+  //     dut.clockDomain.waitSampling(500)
+  //     assert(!dut.io.redLeds(3).toBoolean)
+  //     uartTxByte(dut, '0')
+  //     dut.clockDomain.waitSamplingWhere(dut.io.redLeds(3).toBoolean)
+  //   }
+  // }
+
   test("Core should toggle LED") {
     Config.sim.compile(ClockedTop()).doSim { dut =>
       SimTimeout(10000)

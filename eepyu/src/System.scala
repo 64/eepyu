@@ -14,17 +14,17 @@ class SystemIO extends Bundle {
 case class System() extends Component {
   val io = new SystemIO
 
-  io.uart.txd := False
+  // io.uart.txd := False
 
-  // val uartCtrl = UartCtrl(config =
-  //   UartCtrlInitConfig(
-  //     baudrate = 115200,
-  //     dataLength = 7, // 8 bits
-  //     parity = UartParityType.NONE,
-  //     stop = UartStopType.ONE
-  //   )
-  // )
-  // uartCtrl.io.uart <> io.uart
+  val uartCtrl = UartCtrl(config =
+    UartCtrlInitConfig(
+      baudrate = 115200,
+      dataLength = 7, // 8 bits
+      parity = UartParityType.NONE,
+      stop = UartStopType.ONE
+    )
+  )
+  uartCtrl.io.uart <> io.uart
 
   val core = new Core()
   val mem = new Memory(
@@ -34,7 +34,7 @@ case class System() extends Component {
       // Blinky
       // addi x1, x0, 0
       // addi x2, x0, 1
-      // slli x2, x2, 20
+      // slli x2, x2, 20 // change to modify blink rate
       //
       // loop:
       // addi x1, x1, 1
@@ -49,15 +49,22 @@ case class System() extends Component {
   io.redLeds(0) := False
   io.redLeds(1) := False
   io.redLeds(2) := False
-  // io.redLeds(3) := core.io.error
+  // io.redLeds(3) := False
 
   mem.io <> core.io.mem
 
-  def whenWriteAddr(x: Int) = {
+  def isWritingAddr(x: Int) = {
     core.io.mem.memAddr === x && core.io.mem.memEnable && core.io.mem.memWriteEnable
   }
-  // io.redLeds(2) := RegNextWhen(core.io.mem.memWriteData(0), whenWriteAddr(0)) init False
-  io.redLeds(3) := RegNextWhen(core.io.mem.memWriteData(0), whenWriteAddr(4)) init False
+  def isReadingAddr(x: Int) = {
+    core.io.mem.memAddr === x && core.io.mem.memEnable && !core.io.mem.memWriteEnable
+  }
+
+  val led = RegInit(False)
+  io.redLeds(3) := led
+  when(isWritingAddr(4)) {
+    led := core.io.mem.memWriteData(0)
+  }
 
   GenerationFlags.synthesis {
     io.greenLed := True
@@ -66,7 +73,7 @@ case class System() extends Component {
     io.greenLed := False
   }
 
-  // uartCtrl.io.write <> uartCtrl.io.read
+  uartCtrl.io.write <> uartCtrl.io.read
 }
 
 object SystemVerilog extends App {

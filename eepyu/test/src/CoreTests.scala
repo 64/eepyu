@@ -103,7 +103,7 @@ class CoreTests extends AnyFunSuite {
       while (true) {
         dut.clockDomain.waitSamplingWhere(dut.io.rvfi_valid.toBoolean)
         val inst = dut.io.rvfi_insn.toBigInt
-        println(f"Retired instruction $inst%x")
+        // println(f"Retired instruction $inst%x")
       }
     }
   }
